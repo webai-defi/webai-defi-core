@@ -1,0 +1,8 @@
+.python-version
+.venv
+.env
+__pycache__
+Scripts
+Lib
+/pyvenv.cfg
+.idea
