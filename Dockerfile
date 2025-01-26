@@ -1,5 +1,4 @@
 FROM python:3.11.7-slim as poetry-dependencies
-# FROM python:3.10.13-slim-bookworm as poetry-dependencies
 
 WORKDIR /tmp
 RUN apt-get -y update && apt-get -y upgrade && pip install poetry && rm -rf /var/lib/apt/lists/*
@@ -9,7 +8,6 @@ RUN poetry self add poetry-plugin-export
 RUN poetry export -f requirements.txt --output requirements.txt
 
 FROM python:3.11.7-slim
-# FROM python:3.10.13-slim-bookworm
 
 WORKDIR /app
 
