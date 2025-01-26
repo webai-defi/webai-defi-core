@@ -4,6 +4,7 @@ FROM python:3.11.7-slim as poetry-dependencies
 WORKDIR /tmp
 RUN apt-get -y update && apt-get -y upgrade && pip install poetry && rm -rf /var/lib/apt/lists/*
 COPY ./pyproject.toml ./poetry.lock* /tmp/
+RUN poetry self update
 RUN poetry self add poetry-plugin-export
 RUN poetry export -f requirements.txt --output requirements.txt
 
