@@ -6,12 +6,14 @@ from src.models.chat import Chat
 from src.models.chat_history import ChatHistory
 from src.schemas.user import UserCreate, UserResponse
 from src.schemas.chat import ChatResponse, ChatCreateUpdate, ChatHistoryResponse
+from src.utils.logger import log_exceptions
 
 from typing import List
 
 router = APIRouter(prefix="/user", tags=["users"])
 
 @router.post("/", response_model=UserResponse)
+@log_exceptions
 def create_user(user: UserCreate, db: Session = Depends(get_db)):
     db_user = db.query(User).filter(User.wallet_id == user.wallet_id).first()
     if db_user:
@@ -23,6 +25,7 @@ def create_user(user: UserCreate, db: Session = Depends(get_db)):
     return new_user
 
 @router.get("/{wallet_id}", response_model=UserResponse)
+@log_exceptions
 def login_user(wallet_id: str, db: Session = Depends(get_db)):
     db_user = db.query(User).filter(User.wallet_id == wallet_id).first()
     if not db_user:
@@ -32,6 +35,7 @@ def login_user(wallet_id: str, db: Session = Depends(get_db)):
 @router.post("/chats/",
              description="Create a new chat or update an existing one based on the provided UUID from frontend. "
                          "Adds new question and answer messages to the chat history.")
+@log_exceptions
 def create_or_update_chat(chat_data: ChatCreateUpdate, wallet_id: int, db: Session = Depends(get_db)):
     db_chat = db.query(Chat).filter(Chat.uuid == chat_data.uuid).first()
     if not db_chat:
@@ -50,6 +54,7 @@ def create_or_update_chat(chat_data: ChatCreateUpdate, wallet_id: int, db: Sessi
 
 @router.get("/chats/", response_model=List[ChatResponse],
             description="Retrieve all chats associated with a specific user ID.")
+@log_exceptions
 def get_chats(wallet_id: int, db: Session = Depends(get_db)):
     db_chats = db.query(Chat).filter(Chat.wallet_id == wallet_id).all()
     return db_chats
@@ -57,6 +62,7 @@ def get_chats(wallet_id: int, db: Session = Depends(get_db)):
 @router.get("/chats/{uuid}", response_model=List[ChatHistoryResponse],
             description="Retrieve the chat history for a specific chat uuid, "
                         "returning messages as question-answer pairs in chronological order.")
+@log_exceptions
 def get_chat_history(uuid: str, db: Session = Depends(get_db)):
     db_chat = db.query(Chat).filter(Chat.uuid == uuid).first()
     if not db_chat:

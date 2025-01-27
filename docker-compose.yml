@@ -18,10 +18,13 @@ services:
     environment:
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - OPENAI_BASE_URL=https://openai-proxy-vercel-gamma.vercel.app/v1
-    #volumes:
-    #  - type: bind
-    #    source: ./logs
-    #    target: /app/logs
+    volumes:
+      - type: bind
+        source: ./logs
+        target: /app/logs
+      - type: bind
+        source: ./db
+        target: /app/db
     networks:
       - cryptothing_0_network
     logging:
