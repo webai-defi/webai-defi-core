@@ -1,0 +1,33 @@
+version: '3.8'
+
+services:
+  cryptothing_0:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: cryptothing_0
+    ports:
+      - "127.0.0.1:3011:8080"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:3011/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 5s
+    #volumes:
+    #  - type: bind
+    #    source: ./logs
+    #    target: /app/logs
+    networks:
+      - cryptothing_0_network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+networks:
+  cryptothing_0_network:
+    driver: bridge
+
