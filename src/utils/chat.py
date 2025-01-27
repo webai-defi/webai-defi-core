@@ -8,6 +8,7 @@ from langchain.agents import AgentExecutor, create_tool_calling_agent
 
 from src.config import settings
 from src.schemas.chat import ChatMessage
+from time import sleep
 
 
 def search(search_query: str) -> str:
@@ -50,8 +51,15 @@ async def stream_response(agent_executor: AgentExecutor, messages: list[ChatMess
         raise ValueError("Messages list is empty. Cannot process the request.")
     
     input_text = input_message.content
+    if input_text.startswith("  "):
+        response = mock_responses(input_text)
+
+    if response:
+        for word in word_generator(response):
+            yield word
+        return
+
     history = [{"role": msg.role, "content": msg.content} for msg in chat_history]
-    
     async for event in agent_executor.astream_events(
         {"input": input_text, "chat_history": history},
         version="v1",
@@ -62,3 +70,18 @@ async def stream_response(agent_executor: AgentExecutor, messages: list[ChatMess
             print(content, end="|")
             if content:
                 yield content
+
+
+def mock_responses(input_message: str) -> str:
+    match input_message:
+        case "  how to buy bitcoin":
+            return "very easy, ligma balls"
+        case _:
+            return None
+        
+
+def word_generator(input_string):
+    words = input_string.split()
+    for word in words:
+        sleep(0.05)
+        yield word + " "
