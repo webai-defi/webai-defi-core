@@ -16,6 +16,10 @@ services:
       retries: 3
       start_period: 5s
     environment:
+      - LANGCHAIN_TRACING_V2=true
+      - LANGCHAIN_ENDPOINT=https://api.smith.langchain.com
+      - LANGCHAIN_API_KEY=${LANGCHAIN_API_KEY}
+      - LANGCHAIN_PROJECT=${LANGCHAIN_PROJECT}
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - OPENAI_BASE_URL=https://openai-proxy-vercel-gamma.vercel.app/v1
     volumes:

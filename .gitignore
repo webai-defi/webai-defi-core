@@ -6,3 +6,6 @@ Scripts
 Lib
 /pyvenv.cfg
 .idea
+db/*
+logs/*
+fortests/*
