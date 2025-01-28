@@ -8,6 +8,6 @@ class Chat(Base):
     id = Column(Integer, primary_key=True, index=True)
     uuid = Column(String, unique=True, nullable=False)
     name = Column(String, nullable=False)
-    wallet_id = Column(Integer, ForeignKey("users.wallet_id"), nullable=False)
+    wallet_id = Column(String, ForeignKey("users.wallet_id"), nullable=False)
     history = relationship("ChatHistory", back_populates="chat")
     owner = relationship("User", back_populates="chats")

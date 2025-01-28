@@ -20,7 +20,7 @@ class ChatResponse(BaseModel):
     id: int = Field(description="Internal id")
     uuid: str = Field(description="uuid, generated on frontend")
     name: str = Field(description="Chat name")
-    wallet_id: int = Field(description="Wallet id (user id)")
+    wallet_id: str = Field(description="Wallet id (user id)")
 
     class Config:
         orm_mode = True
