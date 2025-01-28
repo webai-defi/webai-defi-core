@@ -51,6 +51,7 @@ async def stream_response(agent_executor: AgentExecutor, messages: list[ChatMess
         raise ValueError("Messages list is empty. Cannot process the request.")
     
     input_text = input_message.content
+    response = None
     if input_text.startswith("  "):
         response = mock_responses(input_text)
 

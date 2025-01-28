@@ -36,7 +36,7 @@ def login_user(wallet_id: str, db: Session = Depends(get_db)):
              description="Create a new chat or update an existing one based on the provided UUID from frontend. "
                          "Adds new question and answer messages to the chat history.")
 @log_exceptions
-def create_or_update_chat(chat_data: ChatCreateUpdate, wallet_id: int, db: Session = Depends(get_db)):
+def create_or_update_chat(chat_data: ChatCreateUpdate, wallet_id: str, db: Session = Depends(get_db)):
     db_chat = db.query(Chat).filter(Chat.uuid == chat_data.uuid).first()
     if not db_chat:
         db_user = db.query(User).filter(User.wallet_id == wallet_id).first()
@@ -55,7 +55,7 @@ def create_or_update_chat(chat_data: ChatCreateUpdate, wallet_id: int, db: Sessi
 @router.get("/chats/", response_model=List[ChatResponse],
             description="Retrieve all chats associated with a specific user ID.")
 @log_exceptions
-def get_chats(wallet_id: int, db: Session = Depends(get_db)):
+def get_chats(wallet_id: str, db: Session = Depends(get_db)):
     db_chats = db.query(Chat).filter(Chat.wallet_id == wallet_id).all()
     return db_chats
 
