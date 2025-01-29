@@ -1,14 +1,15 @@
 import asyncio
 
+from time import sleep
 from langchain import hub
 from fastapi import Request
 from langchain_core.tools import Tool
 from langchain_openai import ChatOpenAI
 from langchain.agents import AgentExecutor, create_tool_calling_agent
 
+from src.pasta import CHART_DETAILS_PASTA
 from src.config import settings
 from src.schemas.chat import ChatMessage
-from time import sleep
 
 
 def search(search_query: str) -> str:
@@ -17,12 +18,22 @@ def search(search_query: str) -> str:
     return  "It is cold and rainy in Moscow"
 
 
+def chart_details(token_ca: str) -> dict:
+    """Extract token ca from user question for further processing"""
+    return  token_ca
+
+
 async def create_agent():
     tools = [
         Tool(
             name="WebSearch",
             func=search,
             description="Perform a web search for provided search query"
+        ),
+        Tool(
+            name="ChartDetails",
+            func=chart_details,
+            description="Extract token ca from user question for further processing, example: '2Bs4MW8NKBDy6Bsn2RmGLNYNn4ofccVWMHEiRcVvpump'"
         )
     ]
     llm = ChatOpenAI(
@@ -51,14 +62,13 @@ async def stream_response(agent_executor: AgentExecutor, messages: list[ChatMess
         raise ValueError("Messages list is empty. Cannot process the request.")
     
     input_text = input_message.content
-    response = None
     if input_text.startswith("  "):
         response = mock_responses(input_text)
 
-    if response:
-        for word in word_generator(response):
-            yield word
-        return
+        if response:
+            for word in word_generator(response):
+                yield word
+            return
 
     history = [{"role": msg.role, "content": msg.content} for msg in chat_history]
     async for event in agent_executor.astream_events(
@@ -71,7 +81,16 @@ async def stream_response(agent_executor: AgentExecutor, messages: list[ChatMess
             print(content, end="|")
             if content:
                 yield content
+        elif kind == "on_tool_end":
+            yield str(event) + "\n"
 
+            response = mock_on_tools(event)
+
+            if response:
+                for word in word_generator(response):
+                    yield word
+                return
+            
 
 def mock_responses(input_message: str) -> str:
     match input_message:
@@ -81,8 +100,17 @@ def mock_responses(input_message: str) -> str:
             return None
         
 
+def mock_on_tools(event: dict) -> str:
+    match event['name']:
+        case "ChartDetails":
+            return CHART_DETAILS_PASTA.format(token_ca=event['data'].get('output'))
+        case _:
+            return None
+    
+
 def word_generator(input_string):
     words = input_string.split()
     for word in words:
         sleep(0.05)
         yield word + " "
+        
