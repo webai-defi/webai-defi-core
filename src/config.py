@@ -1,4 +1,6 @@
 """Config"""
+import os
+
 from dotenv import load_dotenv
 from pydantic_settings import BaseSettings
 
@@ -55,7 +57,12 @@ class Settings(BaseSettings):
 
     PROJECT_NAME: str = "Web Search Agent"
     PROJECT_DESC: str = description
+
     DEBUG_LOGS: bool = False
+    LOGS_URL: str = "./logs"
+    LOGS_FILE: str = "error.log"
 
 
 settings = Settings()
+
+os.makedirs(settings.LOGS_URL, exist_ok=True)
