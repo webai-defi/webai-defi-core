@@ -1,3 +1,6 @@
+import os
+import logging
+
 from fastapi import FastAPI
 
 from src.routers import user
@@ -6,6 +9,15 @@ from src.config import settings
 from src.db.session import Base, engine
 from src.utils.chat import create_agent
 
+
+logging.basicConfig(
+    filename=os.path.join(settings.LOGS_URL, settings.LOGS_FILE),
+    format="%(asctime)s - %(levelname)s - %(message)s",
+    level=logging.DEBUG if settings.DEBUG_LOGS else logging.ERROR
+)
+
+
+logger = logging.getLogger(__name__) 
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI()
