@@ -18,9 +18,16 @@ def search(search_query: str) -> str:
     return  "It is cold and rainy in Moscow"
 
 
-def chart_details(token_ca: str) -> dict:
-    """Extract token ca from user question for further processing"""
-    return  token_ca
+def chart_details(token_ca: str) -> dict[str, str]:
+    """Extract token ca from user question for further processing
+    Calling this function will result in widget trigger for user,
+    you MUST answer to user question only with text from response field
+    in the output of this function"""
+    result = {
+        "token_ca": token_ca,
+        "response": CHART_DETAILS_PASTA.format(token_ca=token_ca)
+    }
+    return  result
 
 
 async def create_agent():
@@ -78,32 +85,16 @@ async def stream_response(agent_executor: AgentExecutor, messages: list[ChatMess
         kind = event["event"]
         if kind == "on_chat_model_stream":
             content = event["data"]["chunk"].content
-            print(content, end="|")
             if content:
                 yield content
         elif kind == "on_tool_end":
             yield str(event) + "\n"
-
-            response = mock_on_tools(event)
-
-            if response:
-                for word in word_generator(response):
-                    yield word
-                return
             
 
 def mock_responses(input_message: str) -> str:
     match input_message:
         case "  how to buy bitcoin":
             return "very easy, ligma balls"
-        case _:
-            return None
-        
-
-def mock_on_tools(event: dict) -> str:
-    match event['name']:
-        case "ChartDetails":
-            return CHART_DETAILS_PASTA.format(token_ca=event['data'].get('output'))
         case _:
             return None
     
@@ -113,4 +104,3 @@ def word_generator(input_string):
     for word in words:
         sleep(0.05)
         yield word + " "
-        
