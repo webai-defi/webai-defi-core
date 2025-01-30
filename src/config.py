@@ -62,9 +62,6 @@ class Settings(BaseSettings):
     LOGS_URL: str = "./logs"
     LOGS_FILE: str = "error.log"
 
-    LOGS_URL: str = "/app/logs"
-    LOGS_FILE: str = f"{LOGS_URL}/error.log"
-
     BITQUERY_API_KEY: str = os.environ["BITQUERY_API_KEY"]
     BITQUERY_URL: str = "https://streaming.bitquery.io/eap"
 
