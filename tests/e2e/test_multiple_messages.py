@@ -4,6 +4,13 @@ from typing import List, Dict
 
 BASE_URL = "http://localhost:3011/api"
 
+def read_stream_response(response):
+    full_response = ""
+    for chunk in response.iter_content(chunk_size=1024):
+        if chunk:
+            full_response += chunk.decode('utf-8')
+    return full_response
+
 def test_multiple_messages_flow():
     # Create unique test wallet id
     wallet_id = f"mytest_{str(uuid.uuid4())}"
@@ -29,14 +36,15 @@ def test_multiple_messages_flow():
     initial_chats = response.json()
     assert len(initial_chats) == 0
 
-    # Step 3: First message - Generate response
-    first_message = "What is artificial intelligence?"
+    # Step 3: First message - Generate response with streaming
+    first_message = "What is artificial intelligence? You can use websearch to get the answer."
     response = requests.post(
         f"{BASE_URL}/chat/generate",
-        json={"messages": [{"role": "user", "content": first_message}]}
+        json={"messages": [{"role": "user", "content": first_message}]},
+        stream=True
     )
     assert response.status_code == 200
-    first_answer = response.text
+    first_answer = read_stream_response(response)
 
     # Step 4: Save first Q/A pair
     response = requests.post(
@@ -51,7 +59,7 @@ def test_multiple_messages_flow():
     )
     assert response.status_code == 200
 
-    # Step 5: Second message - Generate response
+    # Step 5: Second message - Generate response with streaming
     second_message = "Can you give some examples of AI applications?"
     response = requests.post(
         f"{BASE_URL}/chat/generate",
@@ -61,10 +69,11 @@ def test_multiple_messages_flow():
                 {"role": "assistant", "content": first_answer},
                 {"role": "user", "content": second_message}
             ]
-        }
+        },
+        stream=True
     )
     assert response.status_code == 200
-    second_answer = response.text
+    second_answer = read_stream_response(response)
 
     # Step 6: Save second Q/A pair
     response = requests.post(

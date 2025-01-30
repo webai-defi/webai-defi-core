@@ -11,6 +11,16 @@ from src.schemas.chat import ChatMessage
 from src.utils.websearch import ai_websearch
 from time import sleep
 
+def sync_search(search_query: str) -> str:
+    """Synchronous wrapper for async search function"""
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    try:
+        return loop.run_until_complete(search(search_query))
+    finally:
+        loop.close()
+
+
 async def search(search_query: str) -> str:
     """Perform a web search for provided search query"""
     return await ai_websearch(search_query)
@@ -20,7 +30,7 @@ async def create_agent():
     tools = [
         Tool(
             name="WebSearch",
-            func=search,
+            func=sync_search,
             description="Perform a web search for provided search query"
         )
     ]
