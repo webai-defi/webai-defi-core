@@ -10,12 +10,22 @@ from langchain.agents import AgentExecutor, create_tool_calling_agent
 from src.pasta import CHART_DETAILS_PASTA
 from src.config import settings
 from src.schemas.chat import ChatMessage
+from src.utils.websearch import ai_websearch
 
 
-def search(search_query: str) -> str:
+def sync_search(search_query: str) -> str:
+    """Synchronous wrapper for async search function"""
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    try:
+        return loop.run_until_complete(search(search_query))
+    finally:
+        loop.close()
+
+
+async def search(search_query: str) -> str:
     """Perform a web search for provided search query"""
-    # TODO
-    return  "It is cold and rainy in Moscow"
+    return await ai_websearch(search_query)
 
 
 def chart_details(token_ca: str) -> dict[str, str]:
@@ -34,7 +44,7 @@ async def create_agent():
     tools = [
         Tool(
             name="WebSearch",
-            func=search,
+            func=sync_search,
             description="Perform a web search for provided search query"
         ),
         Tool(
