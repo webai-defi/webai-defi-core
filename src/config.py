@@ -57,7 +57,10 @@ class Settings(BaseSettings):
 
     PROJECT_NAME: str = "Web Search Agent"
     PROJECT_DESC: str = description
+
     DEBUG_LOGS: bool = False
+    LOGS_URL: str = "./logs"
+    LOGS_FILE: str = "error.log"
 
     LOGS_URL: str = "/app/logs"
     LOGS_FILE: str = f"{LOGS_URL}/error.log"
@@ -67,3 +70,5 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
+
+os.makedirs(settings.LOGS_URL, exist_ok=True)

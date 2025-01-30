@@ -1,8 +1,7 @@
 import logging
-import os
-from fastapi import Request
-from functools import wraps
 
+
+logger = logging.getLogger(__name__)
 
 def log_exceptions(func):
     from functools import wraps
@@ -12,7 +11,7 @@ def log_exceptions(func):
             try:
                 return func(*args, **kwargs)
             except Exception as e:
-                logging.error(f"Exception in {func.__name__}: {str(e)}", exc_info=True)
+                logger.error(f"Exception in {func.__name__}: {str(e)}", exc_info=True)
                 raise e
 
         @wraps(func)
@@ -20,7 +19,7 @@ def log_exceptions(func):
             try:
                 return await func(*args, **kwargs)
             except Exception as e:
-                logging.error(f"Exception in {func.__name__}: {str(e)}", exc_info=True)
+                logger.error(f"Exception in {func.__name__}: {str(e)}", exc_info=True)
                 raise e
 
         return async_wrapper if hasattr(func, "__call__") and callable(func) and func.__code__.co_flags & 0x80 else sync_wrapper
