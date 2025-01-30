@@ -3,17 +3,6 @@ import os
 from fastapi import Request
 from functools import wraps
 
-LOGS_URL = "/app/logs"
-LOGS_FILE = f"{LOGS_URL}/error.log"
-
-
-os.makedirs(LOGS_URL, exist_ok=True)
-
-logging.basicConfig(
-    filename=LOGS_FILE,
-    level=logging.ERROR,
-    format="%(asctime)s - %(levelname)s - %(message)s"
-)
 
 def log_exceptions(func):
     from functools import wraps
