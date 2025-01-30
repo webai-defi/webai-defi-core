@@ -11,9 +11,9 @@ from src.schemas.chat import ChatMessage
 from src.utils.websearch import ai_websearch
 from time import sleep
 
-def search(search_query: str) -> str:
+async def search(search_query: str) -> str:
     """Perform a web search for provided search query"""
-    return ai_websearch(search_query)
+    return await ai_websearch(search_query)
 
 
 async def create_agent():

@@ -6,7 +6,7 @@ load_dotenv()
 
 YOUCOM_API_KEY = os.getenv("YOUCOM_API_KEY")
 
-def ai_websearch(query):
+async def ai_websearch(query):
     # Check if API key exists
     if not YOUCOM_API_KEY:
         raise ValueError("YOUCOM_API_KEY not found in environment variables")
@@ -15,8 +15,8 @@ def ai_websearch(query):
     params = {"query": query}
     
     try:
-        with httpx.Client() as client:
-            response = client.get(
+        async with httpx.AsyncClient() as client:
+            response = await client.get(
                 "https://api.ydc-index.io/search",
                 params=params, 
                 headers=headers,
@@ -27,4 +27,3 @@ def ai_websearch(query):
     except httpx.HTTPError as e:
         raise Exception(f"Error during API request: {str(e)}")
 
-# Remove test code from production file
