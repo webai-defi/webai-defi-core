@@ -5,6 +5,7 @@ from fastapi import FastAPI
 
 from src.routers import user
 from src.routers import chat
+from src.routers import toolcall
 from src.config import settings
 from src.db.session import Base, engine
 from src.utils.chat import create_agent
@@ -31,7 +32,7 @@ def create_app() -> FastAPI:
         docs_url="/swagger",
     )
 
-    routers = [user.router, chat.router]
+    routers = [user.router, chat.router, toolcall.router]
     for router in routers:
         application.include_router(router, prefix="/api")
 
