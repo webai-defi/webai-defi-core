@@ -6,8 +6,16 @@ from src.routers import toolcall
 from src.config import settings
 from src.db.session import Base, engine
 from src.utils.chat import create_agent
-
+import logging
+import os
 Base.metadata.create_all(bind=engine)
+
+os.makedirs(settings.LOGS_URL, exist_ok=True)
+logging.basicConfig(
+    filename=settings.LOGS_FILE,
+    level=logging.ERROR,
+    format="%(asctime)s - %(levelname)s - %(message)s"
+)
 
 app = FastAPI()
 

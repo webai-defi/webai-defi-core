@@ -1,3 +1,5 @@
+import logging
+
 import requests
 import json
 
@@ -6,17 +8,18 @@ from src.utils.logger import log_exceptions
 from src.schemas.chart import ChartResponse
 from src.graphql.queries import chart_query_template
 from typing import List
-
+from src.config import settings
 router = APIRouter(prefix="/toolcall", tags=["toolcalls"])
 
-BITQUERY_URL = "https://streaming.bitquery.io/eap"
-BITQUERY_API_KEY = ""
+BITQUERY_URL = settings.BITQUERY_URL
+BITQUERY_API_KEY = settings.BITQUERY_API_KEY
 
 
 @router.get("/market-chart", response_model=ChartResponse)
 @log_exceptions
 def get_chart(mint_address: str = Query(..., description="Mint address of the token")):
-
+    print(BITQUERY_API_KEY)
+    print(BITQUERY_URL)
     query = {
         "query": chart_query_template.format(mint_address=mint_address),
         "variables": "{}"
