@@ -33,3 +33,31 @@ query MyQuery {{
   }}
 }}
 """
+
+pumpfun_token_sorted_by_marketcap = """
+   {
+  Solana {
+    DEXTrades(
+      limitBy: {by: Trade_Buy_Currency_MintAddress, count: 1}
+      orderBy: {descending: Trade_Buy_Price}
+      where: {Trade: {Dex: {ProtocolName: {is: "pump"}}, Buy: {Currency: {MintAddress: {notIn: ["11111111111111111111111111111111"]}}}}, Transaction: {Result: {Success: true}}}
+      limit: {count: 10}
+    ) {
+      Trade {
+        Buy {
+          Price
+          PriceInUSD
+          Currency {
+            Name
+            Symbol
+            MintAddress
+            Decimals
+            Fungible
+            Uri
+          }
+        }
+      }
+    }
+  }
+}
+"""
