@@ -10,6 +10,16 @@ class ChatMessage(BaseModel):
 class ChatRequest(BaseModel):
     messages: List[ChatMessage] = Field(description="List of messages in current chat")
 
+class ToolResponse(BaseModel):
+    type: Literal["chart", "token-top", "backend"]
+    endpoint: Optional[str] = Field(
+        default=None, 
+        description="Endpoint to call, if None - no endpoint needed", 
+        example="/api/toolcall/market-chart"
+    )
+    args: Optional[dict] = Field(default=None, description="Args for desired endpoint, if None - no args needed")
+    response: Optional[str] = Field(default=None, description="Predefined response of the tool, if None - agent is used")
+
 class ChatCreateUpdate(BaseModel):
     uuid: str = Field(description="uuid, generated on frontend")
     name: Optional[str] = None

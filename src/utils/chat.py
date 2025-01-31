@@ -7,18 +7,19 @@ from langchain_core.tools import Tool
 from langchain_openai import ChatOpenAI
 from langchain.agents import AgentExecutor, create_tool_calling_agent
 
-from src.pasta import CHART_DETAILS_PASTA
+from src.pasta import CHART_DETAILS_PASTA, TOP_PUMPFUN_TOKENS_BY_MARKET_CAP
 from src.config import settings
-from src.schemas.chat import ChatMessage
+from src.schemas.chat import ChatMessage, ToolResponse
 from src.utils.websearch import ai_websearch
 
 
-def sync_search(search_query: str) -> str:
+def sync_search(search_query: str) -> ToolResponse:
     """Synchronous wrapper for async search function"""
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
     try:
-        return loop.run_until_complete(search(search_query))
+        search_results = loop.run_until_complete(search(search_query))
+        return ToolResponse(type="backend", response=search_results)
     finally:
         loop.close()
 
@@ -28,16 +29,32 @@ async def search(search_query: str) -> str:
     return await ai_websearch(search_query)
 
 
-def chart_details(token_ca: str) -> dict[str, str]:
+def chart_details(token_ca: str) -> ToolResponse:
     """Extract token ca from user question for further processing
     Calling this function will result in widget trigger for user,
     you MUST answer to user question only with text from response field
     in the output of this function"""
-    result = {
-        "token_ca": token_ca,
-        "response": CHART_DETAILS_PASTA.format(token_ca=token_ca)
-    }
-    return  result
+    return ToolResponse(
+        type="chart",
+        endpoint="/api/toolcall/market-chart",
+        args= {
+            "token_ca": token_ca
+        },
+        response=CHART_DETAILS_PASTA.format(token_ca=token_ca)
+    )
+
+
+def top_pump_fun_tokens_by_market_cap(*args, **kwargs) -> ToolResponse:
+    """Get top PumpFun tokens by market capitalization
+    Calling this function will result in widget trigger for user,
+    you MUST answer to user question only with text from response field
+    in the output of this function
+    """
+    return ToolResponse(
+        type="token-top",
+        endpoint="/api/toolcall/pumpfun-top-tokens",
+        response=TOP_PUMPFUN_TOKENS_BY_MARKET_CAP
+    )
 
 
 async def create_agent():
@@ -51,6 +68,11 @@ async def create_agent():
             name="ChartDetails",
             func=chart_details,
             description="Extract token ca from user question for further processing, example: '2Bs4MW8NKBDy6Bsn2RmGLNYNn4ofccVWMHEiRcVvpump'"
+        ),
+        Tool(
+            name="TopPumpFunTokensByMarketCap",
+            func=top_pump_fun_tokens_by_market_cap,
+            description="Get top PumpFun tokens by market capitalization"
         )
     ]
     llm = ChatOpenAI(
