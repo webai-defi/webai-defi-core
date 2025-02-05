@@ -1,7 +1,10 @@
 import os
 import logging
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Depends
+from fastapi_limiter import FastAPILimiter
+from fastapi_limiter.depends import RateLimiter
+from redis import asyncio as aioredis
 
 from src.routers import user
 from src.routers import chat
@@ -34,7 +37,11 @@ def create_app() -> FastAPI:
 
     routers = [user.router, chat.router, toolcall.router]
     for router in routers:
-        application.include_router(router, prefix="/api")
+        application.include_router(
+            router, 
+            prefix="/api",
+            dependencies=[Depends(RateLimiter(times=20, seconds=60))],
+        )
 
     return application
 
@@ -44,3 +51,10 @@ app = create_app()
 @app.on_event("startup")
 async def startup_event():
     app.state.agent = await create_agent()
+
+    redis = await aioredis.from_url(
+        f"redis://{settings.REDIS_HOST}",
+        encoding="utf-8",
+        decode_responses=True,
+    )
+    await FastAPILimiter.init(redis)

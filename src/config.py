@@ -65,6 +65,8 @@ class Settings(BaseSettings):
     BITQUERY_API_KEY: str = os.environ["BITQUERY_API_KEY"]
     BITQUERY_URL: str = "https://streaming.bitquery.io/eap"
 
+    REDIS_HOST: str = os.environ["REDIS_HOST"]
+
 
 settings = Settings()
 

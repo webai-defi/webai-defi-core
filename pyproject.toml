@@ -16,6 +16,8 @@ langchain-openai = "^0.3.2"
 python-dotenv = "^1.0.1"
 pydantic-settings = "^2.7.1"
 ipykernel = "^6.29.5"
+redis = "^5.2.1"
+fastapi-limiter = "^0.1.6"
 
 
 [build-system]
