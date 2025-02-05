@@ -26,6 +26,7 @@ services:
       - BITQUERY_API_KEY=${BITQUERY_API_KEY}
       - NEWSAPI_API_KEY=${NEWSAPI_API_KEY}
       - PERPLEXITY_API_KEY=${PERPLEXITY_API_KEY}
+      - REDIS_HOST=redis://redis:6379
     volumes:
       - type: bind
         source: ./logs
@@ -41,7 +42,15 @@ services:
         max-size: "10m"
         max-file: "3"
 
+  redis:
+    image: "redis:alpine"
+    container_name: redis
+    ports:
+      - "6379:6379"
+    networks:
+      - cryptothing_0_network
+    restart: unless-stopped
+
 networks:
   cryptothing_0_network:
     driver: bridge
-
