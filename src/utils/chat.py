@@ -1,6 +1,7 @@
 import asyncio
 
 from time import sleep
+from typing import Optional
 from langchain import hub
 from fastapi import Request
 from langchain_core.tools import Tool
@@ -8,6 +9,7 @@ from langchain_openai import ChatOpenAI
 from langchain.agents import AgentExecutor, create_tool_calling_agent
 
 from src.pasta import CHART_DETAILS_PASTA, TOP_PUMPFUN_TOKENS_BY_MARKET_CAP
+from src.mock_chats_config import MOCK_CHATS_CONFIG
 from src.config import settings
 from src.schemas.chat import ChatMessage, ToolResponse
 from src.utils.websearch import ai_websearch
@@ -123,12 +125,8 @@ async def stream_response(agent_executor: AgentExecutor, messages: list[ChatMess
             yield str(event) + "\n"
             
 
-def mock_responses(input_message: str) -> str:
-    match input_message:
-        case "  how to buy bitcoin":
-            return "very easy, ligma balls"
-        case _:
-            return None
+def mock_responses(input_message: str) -> Optional[str]:
+    return MOCK_CHATS_CONFIG.get(input_message, None)
     
 
 def word_generator(input_string):
