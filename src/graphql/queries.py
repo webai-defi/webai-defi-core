@@ -19,7 +19,7 @@ query MyQuery {{
       limit: {{count: 100}}
     ) {{
       Block {{
-        Timefield: Time(interval: {{in: minutes, count: 1}})
+        Timefield: Time(interval: {{in: {time_unit}, count: {time_count}}})
       }}
       volume: sum(of: Trade_Amount)
       Trade {{

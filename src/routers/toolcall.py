@@ -31,12 +31,28 @@ def fetch_ipfs_metadata(uri: str) -> Optional[dict]:
     return {}
 
 @router.get("/market-chart", response_model=ChartResponse)
-@log_exceptions
-def get_chart(mint_address: str = Query(..., description="Mint address of the token")):
-    print(BITQUERY_API_KEY)
-    print(BITQUERY_URL)
+def get_chart(mint_address: str = Query(..., description="Mint address of the token"),
+              interval: str = Query("1m", description="Time interval for the chart (1m, 5m, 15m, 30m, 60m, 1d, 3d, 7d, 30d)")):
+    interval_mapping = {
+        "1m": {"unit": "minutes", "count": 1},
+        "5m": {"unit": "minutes", "count": 5},
+        "15m": {"unit": "minutes", "count": 15},
+        "30m": {"unit": "minutes", "count": 30},
+        "60m": {"unit": "minutes", "count": 60},
+        "1d": {"unit": "days", "count": 1},
+        "3d": {"unit": "days", "count": 3},
+        "7d": {"unit": "days", "count": 7},
+        "30d": {"unit": "days", "count": 30},
+    }
+
+    if interval not in interval_mapping:
+        raise HTTPException(status_code=400, detail="Invalid interval parameter")
+
+    time_unit = interval_mapping[interval]["unit"]
+    time_count = interval_mapping[interval]["count"]
+
     query = {
-        "query": chart_query_template.format(mint_address=mint_address),
+        "query": chart_query_template.format(mint_address=mint_address, time_unit=time_unit, time_count=time_count),
         "variables": "{}"
     }
 
