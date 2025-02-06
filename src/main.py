@@ -1,7 +1,7 @@
 import os
-import logging
+import time
 
-from fastapi import FastAPI, Depends
+from fastapi import FastAPI, Depends, Request
 from fastapi_limiter import FastAPILimiter
 from fastapi_limiter.depends import RateLimiter
 from redis import asyncio as aioredis
@@ -12,16 +12,22 @@ from src.routers import toolcall
 from src.config import settings
 from src.db.session import Base, engine
 from src.utils.chat import create_agent
+from src.utils.logger import logger
+from starlette.middleware.base import BaseHTTPMiddleware
 
 
-logging.basicConfig(
-    filename=os.path.join(settings.LOGS_URL, settings.LOGS_FILE),
-    format="%(asctime)s - %(levelname)s - %(message)s",
-    level=logging.DEBUG if settings.DEBUG_LOGS else logging.ERROR
-)
+class LoggingMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        start_time = time.time()
+        logger.info(f"Incoming request: {request.method} {request.url} | Headers: {dict(request.headers)}")
 
+        response = await call_next(request)
 
-logger = logging.getLogger(__name__) 
+        process_time = time.time() - start_time
+        logger.info(f"Response: {response.status_code} | Time: {process_time:.3f}s")
+
+        return response
+
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI()
@@ -35,10 +41,12 @@ def create_app() -> FastAPI:
         docs_url="/swagger",
     )
 
+    application.add_middleware(LoggingMiddleware)
+
     routers = [user.router, chat.router, toolcall.router]
     for router in routers:
         application.include_router(
-            router, 
+            router,
             prefix="/api",
             dependencies=[Depends(RateLimiter(times=20, seconds=60))],
         )
