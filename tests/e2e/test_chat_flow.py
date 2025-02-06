@@ -63,6 +63,12 @@ def test_chat_flow():
     assert history[0]["question"] == messages[0]["content"]
     assert history[0]["answer"] == answer
 
+def test_invalid_chat_history():
+    """Test fetching chat history for a non-existent chat"""
+    response = requests.get(f"{BASE_URL}/user/chats/nonexistent_chat")
+    assert response.status_code == 404
+    assert response.json()["detail"] == "Chat not found"
+
 if __name__ == "__main__":
     test_chat_flow()
     print("All tests passed successfully!") 
