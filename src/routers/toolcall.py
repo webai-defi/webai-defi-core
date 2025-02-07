@@ -7,8 +7,9 @@ from src.utils.logger import log_exceptions
 from src.schemas.chart import ChartResponse
 from src.schemas.pumpfuntoptokens import PumpFunResponse
 from src.graphql.queries import chart_query_template, pumpfun_token_sorted_by_marketcap
-from typing import List, Optional
+from typing import List, Optional, Dict
 from src.config import settings
+from urllib.parse import urlparse
 
 router = APIRouter(prefix="/toolcall", tags=["toolcalls"])
 
@@ -20,15 +21,51 @@ headers = {
     "Authorization": f"Bearer {BITQUERY_API_KEY}"
 }
 
-def fetch_ipfs_metadata(uri: str) -> Optional[dict]:
-    """Получает метаданные токена по IPFS URI."""
-    try:
-        response = requests.get(uri, timeout=5)
-        if response.status_code == 200:
-            return response.json() or {}
-    except requests.RequestException as e:
-        logging.error(f"Ошибка запроса к {uri}: {e}")
+IPFS_GATEWAYS = ["https://dweb.link", "https://ipfs.io", "https://cf-ipfs.com"]
+
+def fetch_ipfs_metadata(uri: str) -> Optional[Dict]:
+    """Получает метаданные токена по IPFS URI, используя альтернативные шлюзы при ошибках."""
+    parsed_uri = urlparse(uri)
+
+    # Проверяем, является ли URL IPFS-шлюзом
+    ipfs_hash = None
+    for gateway in IPFS_GATEWAYS:
+        if parsed_uri.netloc in gateway:
+            ipfs_hash = parsed_uri.path.lstrip("/ipfs/")
+            break
+
+    # Если не нашли в списке известных шлюзов, извлекаем хеш по умолчанию
+    if not ipfs_hash:
+        path_parts = parsed_uri.path.split('/')
+        if "ipfs" in path_parts:
+            ipfs_hash = path_parts[path_parts.index("ipfs") + 1]
+        else:
+            logging.error(f"Некорректный IPFS URI: {uri}")
+            return {}
+
+    for gateway in IPFS_GATEWAYS:
+        new_uri = f"{gateway}/ipfs/{ipfs_hash}"
+        try:
+            response = requests.get(new_uri, timeout=5)
+            if response.status_code == 200:
+                metadata = response.json() or {}
+
+                # Заменяем ссылку в `image` на ipfs.io
+                if "image" in metadata and isinstance(metadata["image"], str):
+                    image_parsed = urlparse(metadata["image"])
+                    for g in IPFS_GATEWAYS:
+                        if image_parsed.netloc in g:
+                            metadata["image"] = metadata["image"].replace(image_parsed.netloc, "ipfs.io")
+                            break
+
+                return metadata
+            else:
+                logging.warning(f"Неудачный статус {response.status_code} для {new_uri}")
+        except requests.RequestException as e:
+            logging.error(f"Ошибка запроса к {new_uri}: {e}")
+
     return {}
+
 
 @router.get("/market-chart", response_model=ChartResponse)
 def get_chart(mint_address: str = Query(..., description="Mint address of the token"),

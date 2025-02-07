@@ -45,6 +45,27 @@ def login_user(wallet_id: str, db: Session = Depends(get_db)):
     logger.info(f"User {wallet_id} found")
     return db_user
 
+@router.post("/chats/",
+             description="Create a new chat or update an existing one based on the provided UUID from frontend. "
+                         "Adds new question and answer messages to the chat history.")
+@log_exceptions
+def create_or_update_chat(chat_data: ChatCreateUpdate, wallet_id: str, db: Session = Depends(get_db)):
+    logger.info(f"Creating or updating chat for wallet_id: {wallet_id}")
+    db_chat = db.query(Chat).filter(Chat.uuid == chat_data.uuid).first()
+    if not db_chat:
+        logger.info(f"Chat not found with chat_uuid: {chat_data.uuid}, creating new")
+        db_user = db.query(User).filter(User.wallet_id == wallet_id).first()
+        if not db_user:
+            raise HTTPException(status_code=404, detail="User not found")
+        db_chat = Chat(uuid=chat_data.uuid, name=chat_data.name or "New Chat", wallet_id=wallet_id)
+        db.add(db_chat)
+        db.commit()
+        db.refresh(db_chat)
+    new_question = ChatHistory(chat_id=db_chat.id, message=chat_data.question)
+    new_answer = ChatHistory(chat_id=db_chat.id, message=chat_data.answer)
+    db.add_all([new_question, new_answer])
+    db.commit()
+    return {"status": "ok"}
 
 @router.get("/chats/", response_model=List[ChatResponse])
 @log_exceptions
