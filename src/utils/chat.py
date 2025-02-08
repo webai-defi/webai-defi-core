@@ -76,6 +76,7 @@ async def create_agent():
             func=top_pump_fun_tokens_by_market_cap,
             description="Get top PumpFun tokens by market capitalization"
         )
+        
     ]
     llm = ChatOpenAI(
         temperature=settings.TEMPERATURE, 
