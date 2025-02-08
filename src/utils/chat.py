@@ -1,14 +1,14 @@
 import asyncio
 
 from time import sleep
-from typing import Optional
+from typing import Optional, Literal
 from langchain import hub
 from fastapi import Request
 from langchain_core.tools import Tool
 from langchain_openai import ChatOpenAI
 from langchain.agents import AgentExecutor, create_tool_calling_agent
 
-from src.pasta import CHART_DETAILS_PASTA, TOP_PUMPFUN_TOKENS_BY_MARKET_CAP
+from src.pasta import CHART_DETAILS_PASTA, TOP_PUMPFUN_TOKENS_BY_MARKET_CAP, TOKEN_VOLUME
 from src.mock_chats_config import MOCK_CHATS_CONFIG
 from src.config import settings
 from src.schemas.chat import ChatMessage, ToolResponse
@@ -31,13 +31,13 @@ async def search(search_query: str) -> str:
     return await ai_websearch(search_query)
 
 
-def chart_details(token_ca: str) -> ToolResponse:
+def chart_details_and_stats(token_ca: str) -> ToolResponse:
     """Extract token ca from user question for further processing
-    Calling this function will result in widget trigger for user,
+    Calling this function will result in widget trigger for user, which shows token chart and stats
     you MUST answer to user question only with text from response field
     in the output of this function"""
     return ToolResponse(
-        type="chart",
+        type="chart-and-stats",
         endpoint="/api/toolcall/market-chart",
         args= {
             "token_ca": token_ca
@@ -59,6 +59,40 @@ def top_pump_fun_tokens_by_market_cap(*args, **kwargs) -> ToolResponse:
     )
 
 
+def top_trading_tokens(*args, **kwargs) -> ToolResponse:
+    """Get top trading tokens from DEX?
+    Calling this function will result in widget trigger for user,
+    you MUST answer to user question only with text from response field
+    in the output of this function
+    """
+    return ToolResponse(
+        type="token-top",
+        endpoint="/api/toolcall/top-trading-tokens",
+        response=TOP_PUMPFUN_TOKENS_BY_MARKET_CAP
+    )
+
+
+def token_volume(
+    token_ca: str, 
+    timeframe: Optional[Literal["1h", "4h", "8h", "16h", "24h", "2d", "7d"]] = None
+) -> ToolResponse:
+    """Extract token ca and timeframe (if presented) from user question for further processing
+    The timeframes might be None or one of the following "1h", "4h", "8h", "16h", "24h", "2d", "7d",
+    where h - hours, d - days.
+    Calling this function will result in widget trigger for user,
+    you MUST answer to user question only with text from response field
+    in the output of this function"""
+    return ToolResponse(
+        type="stat-volume",
+        endpoint="/api/toolcall/token-volume",
+        args= {
+            "token_ca": token_ca,
+            "timeframe": timeframe
+        },
+        response=TOKEN_VOLUME.format(token_ca=token_ca)
+    )
+
+
 async def create_agent():
     tools = [
         Tool(
@@ -67,14 +101,24 @@ async def create_agent():
             description="Perform a web search for provided search query"
         ),
         Tool(
-            name="ChartDetails",
-            func=chart_details,
+            name="ChartDetailsAndStats",
+            func=chart_details_and_stats,
             description="Extract token ca from user question for further processing, example: '2Bs4MW8NKBDy6Bsn2RmGLNYNn4ofccVWMHEiRcVvpump'"
         ),
         Tool(
             name="TopPumpFunTokensByMarketCap",
             func=top_pump_fun_tokens_by_market_cap,
             description="Get top PumpFun tokens by market capitalization"
+        ),
+        Tool(
+            name="TopTradingTokens",
+            func=top_pump_fun_tokens_by_market_cap,
+            description="Get top trading tokens by market capitalization"
+        ),
+        Tool(
+            name="TokenVolume",
+            func=token_volume,
+            description="Extract token ca and timeframe (if presented) from user question for further processing, example of ca: '2Bs4MW8NKBDy6Bsn2RmGLNYNn4ofccVWMHEiRcVvpump'"
         )
     ]
     llm = ChatOpenAI(
