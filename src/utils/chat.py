@@ -4,31 +4,15 @@ from time import sleep
 from typing import Optional
 from langchain import hub
 from fastapi import Request
-from langchain_core.tools import Tool
+from langchain_core.tools import Tool, StructuredTool
 from langchain_openai import ChatOpenAI
 from langchain.agents import AgentExecutor, create_tool_calling_agent
 
 from src.pasta import CHART_DETAILS_PASTA, TOP_PUMPFUN_TOKENS_BY_MARKET_CAP
 from src.mock_chats_config import MOCK_CHATS_CONFIG
 from src.config import settings
-from src.schemas.chat import ChatMessage, ToolResponse
-from src.utils.websearch import ai_websearch, perplexity_search, deep_research_twitter, web_deep_search
-
-
-def sync_search(search_query: str) -> ToolResponse:
-    """Synchronous wrapper for async search function"""
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-    try:
-        search_results = loop.run_until_complete(search(search_query))
-        return ToolResponse(type="backend", response=search_results)
-    finally:
-        loop.close()
-
-
-async def search(search_query: str) -> str:
-    """Perform a web search for provided search query"""
-    return await ai_websearch(search_query)
+from src.schemas.chat import ChatMessage, ToolResponse, TokenSwapModel
+from src.utils.websearch import perplexity_search, deep_research_twitter, web_deep_search
 
 
 def chart_details(token_ca: str) -> ToolResponse:
@@ -59,22 +43,48 @@ def top_pump_fun_tokens_by_market_cap(*args, **kwargs) -> ToolResponse:
     )
 
 
+def swap_tokens(
+    swapA: str,
+    swapB: str
+) -> ToolResponse:
+    """Initiate token swap between two assets. 
+    Calling this function will trigger swap interface for user.
+    You MUST answer with text from response field.
+    
+    Args:
+        swapA: Address or symbol of token to swap FROM (required)
+        swapB: Address or symbol of token to swap TO (required)
+    """
+    return ToolResponse(
+        type="swap",
+        endpoint=None,
+        args={
+            "swapA": swapA,
+            "swapB": swapB
+        },
+        response=f"I've prepared the swap interface for you to exchange {swapA} for {swapB}. Please review the details and confirm the transaction."
+    )
+
+
 async def create_agent():
     tools = [
         Tool(
             name="PerplexitySearch",
             func=perplexity_search,
+            coroutine=perplexity_search,
             description="Perform a search using Perplexity"
         ),
         Tool(
             name="DeepResearchTwitter",
             func=deep_research_twitter,
+            coroutine=deep_research_twitter,
             description="Perform a deep research on Twitter. Useful for understanding trends, sentiments, and expert opinions."
         ),
         Tool(
             name="WebDeepSearch",
             func=web_deep_search,
-            description="Perform a comprehensive web search"
+            coroutine=web_deep_search,
+            description="Perform a search using Perplexity, very deep and advanced mode"
         ),
         Tool(
             name="ChartDetails",
@@ -85,8 +95,13 @@ async def create_agent():
             name="TopPumpFunTokensByMarketCap",
             func=top_pump_fun_tokens_by_market_cap,
             description="Get top PumpFun tokens by market capitalization"
-        )
-        
+        ),
+        StructuredTool.from_function(
+            name="TokenSwap",
+            func=swap_tokens,
+            description="Initiate token swap between two assets. Requires EXACTLY TWO parameters: swapA (token to swap from) and swapB (token to swap to). Must use format: 'TokenSwap' with {'swapA': 'TOKEN1', 'swapB': 'TOKEN2'}. Example: 'Swap BTC to SOL' becomes swapA='BTC', swapB='SOL'",
+            args_schema=TokenSwapModel
+        ),
     ]
     llm = ChatOpenAI(
         temperature=settings.TEMPERATURE, 

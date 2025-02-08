@@ -11,7 +11,7 @@ class ChatRequest(BaseModel):
     messages: List[ChatMessage] = Field(description="List of messages in current chat")
 
 class ToolResponse(BaseModel):
-    type: Literal["chart", "token-top", "backend"]
+    type: Literal["chart", "token-top", "backend", "swap"]
     endpoint: Optional[str] = Field(
         default=None, 
         description="Endpoint to call, if None - no endpoint needed", 
@@ -42,3 +42,8 @@ class ChatHistoryResponse(BaseModel):
 
     class Config:
         orm_mode = True
+        
+        
+class TokenSwapModel(BaseModel):
+    swapA: str
+    swapB: str

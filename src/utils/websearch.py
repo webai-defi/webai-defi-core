@@ -39,15 +39,23 @@ async def perplexity_search(query):
     }
     
     payload = {
-        "model": "pplx-7b-online",  # Using online model for web search
+        "model": "sonar",
         "messages": [
+            {
+                "role": "system",
+                "content": "You are a helpful assistant that provides accurate and concise information."
+            },
             {
                 "role": "user",
                 "content": query
             }
         ],
-        "return_citations": True,  # Get source links
-        "search_recency_filter": "month"  # Get recent results
+        "max_tokens": 300,
+        "temperature": 0.2,
+        "top_p": 0.9,
+        "frequency_penalty": 1,
+        "presence_penalty": 0,
+        "search_recency_filter": "month"
     }
     
     try:
@@ -92,11 +100,14 @@ async def deep_research_twitter(topic, time_range="day"):
             }
             
             payload = {
-                "model": "pplx-7b-online",
+                "model": "sonar-pro",
                 "messages": [{"role": "user", "content": prompt}],
-                "return_citations": True,
                 "search_recency_filter": "day" if time_range == "day" else "week",
-                "search_domain_filter": ["twitter.com", "x.com"]  # Ограничиваем поиск Twitter/X
+                "search_domain_filter": ["twitter.com", "x.com"],
+                "max_tokens": 500,
+                "temperature": 0.3,
+                "top_p": 0.9,
+                "frequency_penalty": 1
             }
             
             async with httpx.AsyncClient() as client:
@@ -148,14 +159,17 @@ async def web_deep_search(query, search_type="comprehensive"):
         }
         
         payload = {
-            "model": "pplx-7b-online",
+            "model": "sonar-pro",
             "messages": [
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": query}
             ],
-            "return_citations": True,
+            "max_tokens": 600,
+            "temperature": 0.1,
+            "top_p": 0.9,
             "search_recency_filter": "month",
-            "temperature": 0.1  # Lower temperature for more focused results
+            "frequency_penalty": 1,
+            "presence_penalty": 0
         }
         
         async with httpx.AsyncClient() as client:
@@ -189,3 +203,8 @@ comprehensive = await web_deep_search("Impact of AI on cryptocurrency trading", 
 # Сфокусированный поиск
 focused = await web_deep_search("Current Bitcoin mining difficulty", search_type="focused")
 """
+
+if __name__ == "__main__":
+    import asyncio
+    result = asyncio.run(perplexity_search("What is the capital of France?"))
+    print(result)
