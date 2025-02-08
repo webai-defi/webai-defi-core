@@ -12,7 +12,7 @@ from src.pasta import CHART_DETAILS_PASTA, TOP_PUMPFUN_TOKENS_BY_MARKET_CAP
 from src.mock_chats_config import MOCK_CHATS_CONFIG
 from src.config import settings
 from src.schemas.chat import ChatMessage, ToolResponse
-from src.utils.websearch import ai_websearch
+from src.utils.websearch import ai_websearch, perplexity_search, deep_research_twitter, web_deep_search
 
 
 def sync_search(search_query: str) -> ToolResponse:
@@ -62,9 +62,19 @@ def top_pump_fun_tokens_by_market_cap(*args, **kwargs) -> ToolResponse:
 async def create_agent():
     tools = [
         Tool(
-            name="WebSearch",
-            func=sync_search,
-            description="Perform a web search for provided search query"
+            name="PerplexitySearch",
+            func=perplexity_search,
+            description="Perform a search using Perplexity"
+        ),
+        Tool(
+            name="DeepResearchTwitter",
+            func=deep_research_twitter,
+            description="Perform a deep research on Twitter. Useful for understanding trends, sentiments, and expert opinions."
+        ),
+        Tool(
+            name="WebDeepSearch",
+            func=web_deep_search,
+            description="Perform a comprehensive web search"
         ),
         Tool(
             name="ChartDetails",

@@ -68,9 +68,9 @@ async def perplexity_search(query):
     except httpx.HTTPError as e:
         raise Exception(f"Error during Perplexity API request: {str(e)}")
     
-async def deep_research_topic(topic, time_range="day"):
+async def deep_research_twitter(topic, time_range="day"):
     """
-    Performs deep research on a topic using Perplexity API
+    Performs deep research on Twitter using Perplexity API
     time_range: 'day' or 'week'
     """
     if not PERPLEXITY_API_KEY:
@@ -78,9 +78,9 @@ async def deep_research_topic(topic, time_range="day"):
     
     # Construct research prompts
     prompts = [
-        f"Provide the latest {time_range}'s comprehensive analysis and developments about {topic}",
-        f"What are the most significant recent discussions and trends about {topic} in the last {time_range}?",
-        f"What are the expert opinions and critical insights about {topic} from the last {time_range}?"
+        f"Provide the latest {time_range}'s Twitter discussions and analysis about {topic}",
+        f"What are the most viral and significant Twitter threads about {topic} in the last {time_range}?",
+        f"What are the expert Twitter opinions and trending discussions about {topic} from the last {time_range}?"
     ]
     
     results = []
@@ -95,7 +95,8 @@ async def deep_research_topic(topic, time_range="day"):
                 "model": "pplx-7b-online",
                 "messages": [{"role": "user", "content": prompt}],
                 "return_citations": True,
-                "search_recency_filter": "day" if time_range == "day" else "week"
+                "search_recency_filter": "day" if time_range == "day" else "week",
+                "search_domain_filter": ["twitter.com", "x.com"]  # Ограничиваем поиск Twitter/X
             }
             
             async with httpx.AsyncClient() as client:
