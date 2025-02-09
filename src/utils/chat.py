@@ -5,13 +5,14 @@ from typing import Optional, Literal
 from langchain import hub
 from fastapi import Request
 from langchain_core.tools import Tool
+from langchain_core.tools.structured import StructuredTool
 from langchain_openai import ChatOpenAI
 from langchain.agents import AgentExecutor, create_tool_calling_agent
 
 from src.pasta import CHART_DETAILS_PASTA, TOP_PUMPFUN_TOKENS_BY_MARKET_CAP, TOKEN_VOLUME
 from src.mock_chats_config import MOCK_CHATS_CONFIG
 from src.config import settings
-from src.schemas.chat import ChatMessage, ToolResponse
+from src.schemas.chat import ChatMessage, ToolResponse, TokenVolumeToolRequest
 from src.utils.websearch import ai_websearch
 
 
@@ -74,19 +75,19 @@ def top_trading_tokens(*args, **kwargs) -> ToolResponse:
 
 def token_volume(
     token_ca: str, 
-    timeframe: Optional[Literal["1h", "4h", "8h", "16h", "24h", "2d", "7d"]] = None
+    timeframe: Optional[Literal["1m", "5m", "15m", "30m", "60m", "1d", "3d", "7d", "30d"]] = None
 ) -> ToolResponse:
     """Extract token ca and timeframe (if presented) from user question for further processing
-    The timeframes might be None or one of the following "1h", "4h", "8h", "16h", "24h", "2d", "7d",
-    where h - hours, d - days.
+    The timeframes might be None or one of the following "1m", "5m", "15m", "30m", "60m", "1d", "3d", "7d", "30d",
+    where m - minutes, d - days.
     Calling this function will result in widget trigger for user,
     you MUST answer to user question only with text from response field
     in the output of this function"""
     return ToolResponse(
-        type="stat-volume",
+        type="stats-volume",
         endpoint="/api/toolcall/token-volume",
         args= {
-            "token_ca": token_ca,
+            "mint_address": token_ca,
             "timeframe": timeframe
         },
         response=TOKEN_VOLUME.format(token_ca=token_ca)
@@ -108,16 +109,17 @@ async def create_agent():
         Tool(
             name="TopPumpFunTokensByMarketCap",
             func=top_pump_fun_tokens_by_market_cap,
-            description="Get top PumpFun tokens by market capitalization"
+            description="Get top PumpFun tokens by market capitalization",
         ),
         Tool(
             name="TopTradingTokens",
-            func=top_pump_fun_tokens_by_market_cap,
+            func=top_trading_tokens,
             description="Get top trading tokens by market capitalization"
         ),
-        Tool(
+        StructuredTool(
             name="TokenVolume",
             func=token_volume,
+            args_schema=TokenVolumeToolRequest,
             description="Extract token ca and timeframe (if presented) from user question for further processing, example of ca: '2Bs4MW8NKBDy6Bsn2RmGLNYNn4ofccVWMHEiRcVvpump'"
         )
     ]
