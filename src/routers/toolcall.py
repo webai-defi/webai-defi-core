@@ -10,7 +10,8 @@ from src.utils.logger import log_exceptions, logger
 from src.schemas.chart import ChartResponse
 from src.schemas.tokenvolume import TokenVolumeResponse
 from src.schemas.pumpfuntoptokens import PumpFunResponse
-from src.graphql.queries import chart_query_template, pumpfun_token_sorted_by_marketcap, token_info_by_mint_address_template
+from src.schemas.topresponse import TopTradersResponse, TokenHoldersResponse, TrendingTokensResponse
+from src.graphql.queries import chart_query_template, pumpfun_token_sorted_by_marketcap, token_info_by_mint_address_template, top_traders_template, top_holders_template, top_trending_template
 from typing import List, Optional, Dict
 from src.config import settings
 from urllib.parse import urlparse
@@ -124,6 +125,122 @@ def get_volume(
     return calculate_volumes(response_string)
 
 
+@router.get("/top-traders", response_model=TopTradersResponse)
+def get_top_traders(
+        mint_address: str = Query(..., description="Mint address of the token"),
+        interval: str = Query("1d", description="Time interval of the top (1m, 5m, 15m, 30m, 60m, 1d, 3d, 7d, 30d)")
+):
+    if interval not in interval_mapping:
+        raise HTTPException(status_code=400, detail="Invalid interval parameter")
+
+    time_unit = interval_mapping[interval]["unit"]
+    time_count = interval_mapping[interval]["count"]
+
+    now = datetime.datetime.utcnow().replace(tzinfo=pytz.utc)
+    since_time = now - datetime.timedelta(**{time_unit: time_count})
+
+    since_time_formatted = since_time.strftime("%Y-%m-%dT%H:%M:%SZ")
+
+    query = {
+        "query": top_traders_template.format(mint_address=mint_address, since_time_formatted=since_time_formatted),
+        "variables": "{}"
+    }
+
+    response = requests.post(BITQUERY_URL, headers=headers, data=json.dumps(query))
+
+    if response.status_code != 200:
+        raise HTTPException(status_code=response.status_code, detail="Failed to fetch data from Bitquery")
+
+    data = response.json()
+
+    dex_trades = data.get("data", {}).get("Solana", {}).get("DEXTradeByTokens", [])
+    if not dex_trades:
+        raise HTTPException(status_code=400, detail="Invalid response from Bitquery")
+
+    return {"data": dex_trades}
+
+
+@router.get("/top-holders", response_model=TokenHoldersResponse)
+def get_token_holders(mint_address: str = Query(..., description="Mint address of the token"),
+        interval: str = Query("1d", description="Time interval of the top (1m, 5m, 15m, 30m, 60m, 1d, 3d, 7d, 30d)")):
+    if interval not in interval_mapping:
+        raise HTTPException(status_code=400, detail="Invalid interval parameter")
+
+    time_unit = interval_mapping[interval]["unit"]
+    time_count = interval_mapping[interval]["count"]
+
+    now = datetime.datetime.utcnow().replace(tzinfo=pytz.utc)
+    since_time = now - datetime.timedelta(**{time_unit: time_count})
+
+    since_time_formatted = since_time.strftime("%Y-%m-%dT%H:%M:%SZ")
+
+    query = {
+        "query": top_holders_template.format(mint_address=mint_address, since_time_formatted=since_time_formatted),
+        "variables": "{}"
+    }
+
+    response = requests.post(BITQUERY_URL, headers=headers, data=json.dumps(query))
+
+    if response.status_code != 200:
+        raise HTTPException(status_code=response.status_code, detail="Failed to fetch data from Bitquery")
+
+    data = response.json()
+    solana_data = data.get("data", {}).get("Solana", {})
+    token_supply_update = solana_data.get("TokenSupplyUpdates", [{}])[0].get("TokenSupplyUpdate", {})
+    post_balance = float(token_supply_update.get("PostBalance", "0"))
+
+    top_holders = solana_data.get("Top_holders", [])
+    processed_holders = []
+    for holder in top_holders:
+        balance_update = holder.get("BalanceUpdate", {})
+        balance = float(balance_update.get("balance", "0"))
+        balance_update["percentage_owned"] = (balance / post_balance if post_balance > 0 else 0) * 100
+        processed_holders.append(balance_update)
+
+    return {"data": {"TokenSupplyUpdates": token_supply_update, "Top_holders": processed_holders}}
+
+
+
+@router.get("/trending-tokens", response_model=TrendingTokensResponse)
+def get_trending_tokens(interval: str = Query("1d", description="Time interval of the top (1m, 5m, 15m, 30m, 60m, 1d, 3d, 7d, 30d)")):
+    if interval not in interval_mapping:
+        raise HTTPException(status_code=400, detail="Invalid interval parameter")
+
+    time_unit = interval_mapping[interval]["unit"]
+    time_count = interval_mapping[interval]["count"]
+
+    now = datetime.datetime.utcnow().replace(tzinfo=pytz.utc)
+    since_time = now - datetime.timedelta(**{time_unit: time_count})
+
+    since_time_formatted = since_time.strftime("%Y-%m-%dT%H:%M:%SZ")
+
+    query = {
+        "query": top_trending_template.format(since_time_formatted=since_time_formatted),
+        "variables": "{}"
+    }
+
+    response = requests.post(BITQUERY_URL, headers=headers, data=json.dumps(query))
+
+    if response.status_code != 200:
+        raise HTTPException(status_code=response.status_code, detail="Failed to fetch data from Bitquery")
+
+    data = response.json()
+
+    trending_tokens = data.get("data", {}).get("Solana", {}).get("DEXTradeByTokens", [])
+    if not trending_tokens:
+        raise HTTPException(status_code=400, detail="Invalid response from Bitquery")
+
+    for token in trending_tokens:
+        price_last = token.get("Trade", {}).get("price_last", 0)
+        price_1h_ago = token.get("Trade", {}).get("price_1h_ago", 0)
+        if price_1h_ago > 0:
+            token["price_change_percent"] = ((price_last - price_1h_ago) / price_1h_ago) * 100
+        else:
+            token["price_change_percent"] = 0
+
+    return {"data": trending_tokens}
+
+
 IPFS_GATEWAYS = ["https://dweb.link", "https://ipfs.io", "https://cf-ipfs.com"]
 
 def fetch_ipfs_metadata(uri: str) -> Optional[Dict]:
@@ -176,9 +293,6 @@ def calculate_volumes(response):
     balance_updates = data.get("Solana", {}).get("BalanceUpdates", [])
     token_supply_updates = data.get("Solana", {}).get("TokenSupplyUpdates", [])
 
-    if not trades:
-        logging.error(f"Нет данных для анализа. {mint_address}")
-        return {}
 
     # Создаем DataFrame
     df = pd.DataFrame(trades)

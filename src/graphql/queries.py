@@ -164,3 +164,151 @@ query MyQuery {{
   }}
 }}
 """
+
+"""
+Выводит топ трейдеров по обьему по токену.
+На вход нужно заменить плейсхолдеры:
+    - mint_address
+    - since_time_formatted
+Пример использования:
+
+top_traders_template.format(mint_address=mint_address, since_time_formatted=since_time_formatted)
+"""
+
+top_traders_template = """
+query TopTraders {{
+  Solana {{
+    DEXTradeByTokens(
+      orderBy: {{descendingByField: "volumeUsd"}}
+      limit: {{count: 20}}
+      where: {{Trade: {{Currency: {{MintAddress: {{is: "{mint_address}"}}}}, Side: {{Amount: {{gt: "0"}}}}}}, Transaction: {{Result: {{Success: true}}}}, Block: {{Time: {{since: "{since_time_formatted}"}}}}}}
+    ) {{
+      Trade {{
+        Account {{
+          Owner
+        }}
+      }}
+      buys: count(if: {{Trade: {{Side: {{Type: {{is: buy}}}}}}}})
+      sells: count(if: {{Trade: {{Side: {{Type: {{is: sell}}}}}}}})
+      bought: sum(of: Trade_Amount, if: {{Trade: {{Side: {{Type: {{is: buy}}}}}}}})
+      sold: sum(of: Trade_Amount, if: {{Trade: {{Side: {{Type: {{is: sell}}}}}}}})
+      volume: sum(of: Trade_Amount)
+      volumeUsd: sum(of: Trade_Side_AmountInUSD)
+    }}
+  }}
+}}
+
+"""
+
+top_holders_template = """
+query MyQuery {{
+  Solana {{
+    TokenSupplyUpdates(
+      where: {{TokenSupplyUpdate: {{Currency: {{MintAddress: {{is: "{mint_address}"}}}}}}}}
+      limit: {{count: 1}}
+      orderBy: {{descending: Block_Time}}
+    ) {{
+      TokenSupplyUpdate {{
+        PostBalance
+        PostBalanceInUSD
+      }}
+    }}
+    Top_holders: BalanceUpdates(
+      orderBy: {{descendingByField: "BalanceUpdate_balance_maximum"}}
+      limit: {{count: 20}}
+      where: {{BalanceUpdate: {{Currency: {{MintAddress: {{is: "{mint_address}"}}}}}}, Block: {{Time: {{since: "{since_time_formatted}"}}}}}}
+    ) {{
+      BalanceUpdate {{
+        Account {{
+          Owner
+        }}
+        balance: PostBalance(maximum: Block_Slot)
+      }}
+    }}
+  }}
+}}
+"""
+
+top_trending_template = """
+query {{
+  Solana {{
+    DEXTradeByTokens(
+      where: {{
+        Transaction: {{
+          Result: {{
+            Success: true
+          }}
+        }}, 
+        Block: {{
+          Time: {{after: "{since_time_formatted}"}}
+        }}, 
+        Trade: {{
+          Dex: {{
+            ProtocolFamily: {{not: "pump"}}
+          }}
+        }}, 
+        any: [
+          {{
+            Trade: {{
+              Currency: {{
+                MintAddress: {{notIn: ["EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v", "Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB"]}}
+              }}
+            }}
+          }}, {{
+            Trade: {{
+              Currency: {{
+                MintAddress: {{notIn: ["EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v", "So11111111111111111111111111111111111111112"]}}
+              }}, 
+              Side: {{
+                Currency: {{
+                  MintAddress: {{is: "Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB"}}
+                }}
+              }}
+            }}
+          }}, {{
+            Trade: {{
+              Currency: {{
+                MintAddress: {{notIn: ["Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB", "So11111111111111111111111111111111111111112"]}}
+              }}
+              Side: {{
+                Currency: {{
+                  MintAddress: {{is: "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"}}
+                }}
+              }}
+            }}
+          }}, {{
+            Trade: {{
+              Currency: {{
+                MintAddress: {{notIn: ["So11111111111111111111111111111111111111112", "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v", "Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB"]}}
+              }},
+              Side: {{
+                Currency: {{
+                  MintAddress: {{notIn: ["So11111111111111111111111111111111111111112", "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v", "Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB"]}}
+                }}
+              }}
+            }}
+          }}
+        ]
+      }}
+      orderBy: {{descendingByField: "usd"}}
+      limit: {{count: 20}}
+    ) {{
+      Trade {{
+        Currency {{
+          Symbol
+          Name
+          MintAddress
+        }}
+        price_last: PriceInUSD(maximum: Block_Slot)
+        price_1h_ago: PriceInUSD(minimum: Block_Slot)
+      }}
+      dexes: uniq(of: Trade_Dex_ProgramAddress)
+      amount: sum(of: Trade_Side_Amount)
+      usd: sum(of: Trade_Side_AmountInUSD)
+      traders: uniq(of: Trade_Account_Owner)
+      count(selectWhere: {{ge: "100"}})
+    }}
+  }}
+}}
+
+"""
