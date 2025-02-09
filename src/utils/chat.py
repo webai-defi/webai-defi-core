@@ -1,27 +1,27 @@
 import asyncio
 
 from time import sleep
-from typing import Optional
+from typing import Optional, Literal
 from langchain import hub
 from fastapi import Request
 from langchain_core.tools import Tool, StructuredTool
 from langchain_openai import ChatOpenAI
 from langchain.agents import AgentExecutor, create_tool_calling_agent
 
-from src.pasta import CHART_DETAILS_PASTA, TOP_PUMPFUN_TOKENS_BY_MARKET_CAP
+from src.pasta import CHART_DETAILS_PASTA, TOP_PUMPFUN_TOKENS_BY_MARKET_CAP, TOKEN_VOLUME
 from src.mock_chats_config import MOCK_CHATS_CONFIG
 from src.config import settings
-from src.schemas.chat import ChatMessage, ToolResponse, TokenSwapModel
+from src.schemas.chat import ChatMessage, ToolResponse, TokenSwapModel, TokenVolumeToolRequest
 from src.utils.websearch import perplexity_search, deep_research_twitter, web_deep_search
 
 
-def chart_details(token_ca: str) -> ToolResponse:
+def chart_details_and_stats(token_ca: str) -> ToolResponse:
     """Extract token ca from user question for further processing
-    Calling this function will result in widget trigger for user,
+    Calling this function will result in widget trigger for user, which shows token chart and stats
     you MUST answer to user question only with text from response field
     in the output of this function"""
     return ToolResponse(
-        type="chart",
+        type="chart-and-stats",
         endpoint="/api/toolcall/market-chart",
         args= {
             "token_ca": token_ca
@@ -42,6 +42,39 @@ def top_pump_fun_tokens_by_market_cap(*args, **kwargs) -> ToolResponse:
         response=TOP_PUMPFUN_TOKENS_BY_MARKET_CAP
     )
 
+
+def top_trading_tokens(*args, **kwargs) -> ToolResponse:
+    """Get top trading tokens from DEX?
+    Calling this function will result in widget trigger for user,
+    you MUST answer to user question only with text from response field
+    in the output of this function
+    """
+    return ToolResponse(
+        type="token-top",
+        endpoint="/api/toolcall/top-trading-tokens",
+        response=TOP_PUMPFUN_TOKENS_BY_MARKET_CAP
+    )
+
+
+def token_volume(
+    token_ca: str, 
+    timeframe: Optional[Literal["1m", "5m", "15m", "30m", "60m", "1d", "3d", "7d", "30d"]] = None
+) -> ToolResponse:
+    """Extract token ca and timeframe (if presented) from user question for further processing
+    The timeframes might be None or one of the following "1m", "5m", "15m", "30m", "60m", "1d", "3d", "7d", "30d",
+    where m - minutes, d - days.
+    Calling this function will result in widget trigger for user,
+    you MUST answer to user question only with text from response field
+    in the output of this function"""
+    return ToolResponse(
+        type="stats-volume",
+        endpoint="/api/toolcall/token-volume",
+        args= {
+            "mint_address": token_ca,
+            "timeframe": timeframe
+        },
+        response=TOKEN_VOLUME.format(token_ca=token_ca)
+    )
 
 def swap_tokens(
     swapA: str,
@@ -87,14 +120,25 @@ async def create_agent():
             description="Perform a search using Perplexity, very deep and advanced mode"
         ),
         Tool(
-            name="ChartDetails",
-            func=chart_details,
+            name="ChartDetailsAndStats",
+            func=chart_details_and_stats,
             description="Extract token ca from user question for further processing, example: '2Bs4MW8NKBDy6Bsn2RmGLNYNn4ofccVWMHEiRcVvpump'"
         ),
         Tool(
             name="TopPumpFunTokensByMarketCap",
             func=top_pump_fun_tokens_by_market_cap,
-            description="Get top PumpFun tokens by market capitalization"
+            description="Get top PumpFun tokens by market capitalization",
+        ),
+        Tool(
+            name="TopTradingTokens",
+            func=top_trading_tokens,
+            description="Get top trading tokens"
+        ),
+        StructuredTool(
+            name="TokenVolume",
+            func=token_volume,
+            args_schema=TokenVolumeToolRequest,
+            description="Extract token ca and timeframe (if presented) from user question for further processing, example of ca: '2Bs4MW8NKBDy6Bsn2RmGLNYNn4ofccVWMHEiRcVvpump'"
         ),
         StructuredTool.from_function(
             name="TokenSwap",
