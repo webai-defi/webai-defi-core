@@ -56,6 +56,26 @@ def top_trading_tokens(*args, **kwargs) -> ToolResponse:
     )
 
 
+def top_token_traders(
+    token_ca: str, 
+    timeframe: Optional[Literal["1m", "5m", "15m", "30m", "60m", "1d", "3d", "7d", "30d"]] = None
+) -> ToolResponse:
+    """Extract token ca and timeframe (if presented) from user question for further processing
+    The timeframes might be None or one of the following "1m", "5m", "15m", "30m", "60m", "1d", "3d", "7d", "30d",
+    where m - minutes, d - days.
+    Calling this function will result in widget trigger for user,
+    you MUST answer to user question only with text from response field
+    in the output of this function"""
+    return ToolResponse(
+        type="top-traders",
+        endpoint="/api/toolcall/top-traders",
+        args= {
+            "mint_address": token_ca,
+            "timeframe": timeframe
+        },
+        response=TOKEN_VOLUME.format(token_ca=token_ca)
+    )
+
 def token_volume(
     token_ca: str, 
     timeframe: Optional[Literal["1m", "5m", "15m", "30m", "60m", "1d", "3d", "7d", "30d"]] = None
@@ -138,7 +158,13 @@ async def create_agent():
             name="TokenVolume",
             func=token_volume,
             args_schema=TokenVolumeToolRequest,
-            description="Extract token ca and timeframe (if presented) from user question for further processing, example of ca: '2Bs4MW8NKBDy6Bsn2RmGLNYNn4ofccVWMHEiRcVvpump'"
+            description="Extract token ca and timeframe (if presented) from user question to retrieve token volume, example of ca: '2Bs4MW8NKBDy6Bsn2RmGLNYNn4ofccVWMHEiRcVvpump'"
+        ),
+        StructuredTool(
+            name="TopTokenTraders",
+            func=top_token_traders,
+            args_schema=TokenVolumeToolRequest,
+            description="Extract token ca and timeframe (if presented) from user question to retrieve top token traders, example of ca: '2Bs4MW8NKBDy6Bsn2RmGLNYNn4ofccVWMHEiRcVvpump'"
         ),
         StructuredTool.from_function(
             name="TokenSwap",
