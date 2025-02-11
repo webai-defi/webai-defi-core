@@ -16,7 +16,7 @@ from src.pasta import (
     )
 from src.mock_chats_config import MOCK_CHATS_CONFIG
 from src.config import settings
-from src.schemas.chat import ChatMessage, ToolResponse, TokenSwapModel, TokenVolumeToolRequest
+from src.schemas.chat import ChatMessage, ToolResponse, TokenSwapModel, ToolRequestWithTokenAndTimeframe
 from src.utils.websearch import perplexity_search, deep_research_twitter, web_deep_search
 
 
@@ -63,7 +63,7 @@ async def top_trading_tokens(*args, **kwargs) -> ToolResponse:
 
 async def top_token_traders(
     token_ca: str, 
-    timeframe: Optional[Literal["1m", "5m", "15m", "30m", "60m", "1d", "3d", "7d", "30d"]] = None
+    timeframe: Optional[str] = None
 ) -> ToolResponse:
     """Extract token ca and timeframe (if presented) from user question for further processing
     The timeframes might be None or one of the following "1m", "5m", "15m", "30m", "60m", "1d", "3d", "7d", "30d",
@@ -76,18 +76,16 @@ async def top_token_traders(
         endpoint="/api/toolcall/top-traders",
         args= {
             "mint_address": token_ca,
-            "timeframe": timeframe
+            "timeframe": timeframe if timeframe in settings.TIME_INTERVALS else None
         },
         response=TOP_TOKEN_HOLDERS.format(token_ca=token_ca)
     )
 
 async def token_volume(
     token_ca: str, 
-    timeframe: Optional[Literal["1m", "5m", "15m", "30m", "60m", "1d", "3d", "7d", "30d"]] = None
+    timeframe: Optional[str] = None
 ) -> ToolResponse:
     """Extract token ca and timeframe (if presented) from user question for further processing
-    The timeframes might be None or one of the following "1m", "5m", "15m", "30m", "60m", "1d", "3d", "7d", "30d",
-    where m - minutes, d - days.
     Calling this function will result in widget trigger for user,
     you MUST answer to user question only with text from response field
     in the output of this function"""
@@ -96,7 +94,7 @@ async def token_volume(
         endpoint="/api/toolcall/token-volume",
         args= {
             "mint_address": token_ca,
-            "timeframe": timeframe
+            "timeframe": timeframe if timeframe in settings.TIME_INTERVALS else None
         },
         response=TOKEN_VOLUME.format(token_ca=token_ca)
     )
@@ -166,15 +164,15 @@ async def create_agent():
             name="TokenVolume",
             func=token_volume,
             coroutine=token_volume,
-            args_schema=TokenVolumeToolRequest,
-            description="Extract token ca and timeframe (if presented) from user question to retrieve token volume, example of ca: '2Bs4MW8NKBDy6Bsn2RmGLNYNn4ofccVWMHEiRcVvpump'"
+            args_schema=ToolRequestWithTokenAndTimeframe,
+            description="""Extract token ca and timeframe (if presented) from user question to retrieve token volume, example of ca: '2Bs4MW8NKBDy6Bsn2RmGLNYNn4ofccVWMHEiRcVvpump', timeframes might be None or one of the following "1m", "5m", "15m", "30m", "60m", "1d", "3d", "7d", "30d" where m - minutes, d - days."""
         ),
         StructuredTool(
             name="TopTokenTraders",
             func=top_token_traders,
             coroutine=top_token_traders,
-            args_schema=TokenVolumeToolRequest,
-            description="Extract token ca and timeframe (if presented) from user question to retrieve top token traders, example of ca: '2Bs4MW8NKBDy6Bsn2RmGLNYNn4ofccVWMHEiRcVvpump'"
+            args_schema=ToolRequestWithTokenAndTimeframe,
+            description="""Extract token ca and timeframe (if presented) from user question to retrieve top token traders, example of ca: '2Bs4MW8NKBDy6Bsn2RmGLNYNn4ofccVWMHEiRcVvpump', timeframes might be None or one of the following "1m", "5m", "15m", "30m", "60m", "1d", "3d", "7d", "30d" where m - minutes, d - days."""
         ),
         StructuredTool.from_function(
             name="TokenSwap",

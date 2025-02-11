@@ -20,9 +20,9 @@ class ToolResponse(BaseModel):
     args: Optional[dict] = Field(default=None, description="Args for desired endpoint, if None - no args needed")
     response: Optional[str] = Field(default=None, description="Predefined response of the tool, if None - agent is used")
 
-class TokenVolumeToolRequest(BaseModel):
+class ToolRequestWithTokenAndTimeframe(BaseModel):
     token_ca: str
-    timeframe: Optional[Literal["1m", "5m", "15m", "30m", "60m", "1d", "3d", "7d", "30d"]] = None
+    timeframe: Optional[str] = None
 
 class ChatCreateUpdate(BaseModel):
     uuid: str = Field(description="uuid, generated on frontend")
