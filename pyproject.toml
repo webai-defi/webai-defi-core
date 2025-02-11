@@ -19,6 +19,7 @@ ipykernel = "^6.29.5"
 redis = "^5.2.1"
 fastapi-limiter = "^0.1.6"
 pandas = "^2.2.3"
+aiosqlite = "^0.21.0"
 
 
 [build-system]

@@ -1,9 +1,10 @@
 import logging
-import requests
 import json
+import httpx
 import pandas as pd
 import datetime
 import pytz
+import requests
 
 from fastapi import APIRouter, HTTPException, Depends, Query
 from src.utils.logger import log_exceptions, logger
@@ -40,9 +41,10 @@ interval_mapping = {
 
 
 @router.get("/market-chart", response_model=ChartResponse)
-def get_chart(mint_address: str = Query(..., description="Mint address of the token"),
-              interval: str = Query("1m", description="Time interval for the chart (1m, 5m, 15m, 30m, 60m, 1d, 3d, 7d, 30d)")):
-
+async def get_chart(
+    mint_address: str = Query(..., description="Mint address of the token"),
+    interval: str = Query("1m", description="Time interval for the chart (1m, 5m, 15m, 30m, 60m, 1d, 3d, 7d, 30d)")
+):
     if interval not in interval_mapping:
         raise HTTPException(status_code=400, detail="Invalid interval parameter")
 
@@ -54,7 +56,8 @@ def get_chart(mint_address: str = Query(..., description="Mint address of the to
         "variables": "{}"
     }
 
-    response = requests.post(BITQUERY_URL, headers=headers, data=json.dumps(query))
+    async with httpx.AsyncClient() as client:
+        response = await client.post(BITQUERY_URL, headers=headers, json=query)
 
     if response.status_code != 200:
         raise HTTPException(status_code=response.status_code, detail="Failed to fetch data from Bitquery")
@@ -67,11 +70,16 @@ def get_chart(mint_address: str = Query(..., description="Mint address of the to
     return {"data": data["data"]["Solana"]["DEXTradeByTokens"]}
 
 
+
 @router.get("/pumpfun-top-tokens", response_model=PumpFunResponse)
 @log_exceptions
-def get_pumpfun_top_tokens():
-    response = requests.post(BITQUERY_URL, headers=headers,
-                             data=json.dumps({"query": pumpfun_token_sorted_by_marketcap, "variables": "{}"}))
+async def get_pumpfun_top_tokens():
+    async with httpx.AsyncClient() as client:
+        response = await client.post(
+            BITQUERY_URL,
+            headers=headers,
+            json={"query": pumpfun_token_sorted_by_marketcap, "variables": "{}"}
+        )
 
     if response.status_code != 200:
         raise HTTPException(status_code=response.status_code, detail="Failed to fetch data from Bitquery")
@@ -83,21 +91,24 @@ def get_pumpfun_top_tokens():
 
     trades = data["data"]["Solana"]["DEXTrades"]
 
-    for trade in trades:
-        uri = trade["Trade"]["Buy"]["Currency"].get("Uri")
-        metadata = fetch_ipfs_metadata(uri) if uri else {}
-        trade["Trade"]["Buy"]["Currency"].update({
-            "description": metadata.get("description", ""),
-            "image": metadata.get("image", ""),
-            "twitter": metadata.get("twitter", ""),
-            "website": metadata.get("website", ""),
-            "createdOn": metadata.get("createdOn", "")
-        })
+    async with httpx.AsyncClient() as client:
+        for trade in trades:
+            uri = trade["Trade"]["Buy"]["Currency"].get("Uri")
+            metadata = await fetch_ipfs_metadata(uri) if uri else {}
+            trade["Trade"]["Buy"]["Currency"].update({
+                "description": metadata.get("description", ""),
+                "image": metadata.get("image", ""),
+                "twitter": metadata.get("twitter", ""),
+                "website": metadata.get("website", ""),
+                "createdOn": metadata.get("createdOn", "")
+            })
 
     return {"data": trades}
 
+
+
 @router.get("/token-volume", response_model=TokenVolumeResponse)
-def get_volume(
+async def get_volume(
     mint_address: str = Query(..., description="Mint address of the token"),
     interval: str = Query("1d", description="Time interval for the chart (1m, 5m, 15m, 30m, 60m, 1d, 3d, 7d, 30d)")
 ):
@@ -112,23 +123,34 @@ def get_volume(
 
     since_time_formatted = since_time.strftime("%Y-%m-%dT%H:%M:%SZ")
     now_time_formatted = now.strftime("%Y-%m-%dT%H:%M:%SZ")
+
     query = {
-        "query": token_info_by_mint_address_template.format(mint_address=mint_address, since_time_formatted=since_time_formatted, now_time_formatted=now_time_formatted),
+        "query": token_info_by_mint_address_template.format(
+            mint_address=mint_address,
+            since_time_formatted=since_time_formatted,
+            now_time_formatted=now_time_formatted
+        ),
         "variables": "{}"
     }
 
-    response = requests.post(BITQUERY_URL, headers=headers, data=json.dumps(query))
+    async with httpx.AsyncClient() as client:
+        response = await client.post(BITQUERY_URL, headers=headers, json=query)
+
     if response.status_code != 200:
         raise HTTPException(status_code=response.status_code, detail="Failed to fetch data from Bitquery")
-    response_json = response.json()
-    response_string =  str(response_json['data']).replace('\'', '"')
-    return calculate_volumes(response_string)
 
+    response_json = response.json()
+
+    if "data" not in response_json:
+        raise HTTPException(status_code=400, detail="Invalid response from Bitquery")
+
+    response_string = json.dumps(response_json["data"])
+    return await calculate_volumes(response_string)
 
 @router.get("/top-traders", response_model=TopTradersResponse)
-def get_top_traders(
-        mint_address: str = Query(..., description="Mint address of the token"),
-        interval: str = Query("1d", description="Time interval of the top (1m, 5m, 15m, 30m, 60m, 1d, 3d, 7d, 30d)")
+async def get_top_traders(
+    mint_address: str = Query(..., description="Mint address of the token"),
+    interval: str = Query("1d", description="Time interval of the top (1m, 5m, 15m, 30m, 60m, 1d, 3d, 7d, 30d)")
 ):
     if interval not in interval_mapping:
         raise HTTPException(status_code=400, detail="Invalid interval parameter")
@@ -138,7 +160,6 @@ def get_top_traders(
 
     now = datetime.datetime.utcnow().replace(tzinfo=pytz.utc)
     since_time = now - datetime.timedelta(**{time_unit: time_count})
-
     since_time_formatted = since_time.strftime("%Y-%m-%dT%H:%M:%SZ")
 
     query = {
@@ -146,7 +167,8 @@ def get_top_traders(
         "variables": "{}"
     }
 
-    response = requests.post(BITQUERY_URL, headers=headers, data=json.dumps(query))
+    async with httpx.AsyncClient() as client:
+        response = await client.post(BITQUERY_URL, headers=headers, json=query)
 
     if response.status_code != 200:
         raise HTTPException(status_code=response.status_code, detail="Failed to fetch data from Bitquery")
@@ -161,8 +183,10 @@ def get_top_traders(
 
 
 @router.get("/top-holders", response_model=TokenHoldersResponse)
-def get_token_holders(mint_address: str = Query(..., description="Mint address of the token"),
-        interval: str = Query("1d", description="Time interval of the top (1m, 5m, 15m, 30m, 60m, 1d, 3d, 7d, 30d)")):
+async def get_token_holders(
+    mint_address: str = Query(..., description="Mint address of the token"),
+    interval: str = Query("1d", description="Time interval of the top (1m, 5m, 15m, 30m, 60m, 1d, 3d, 7d, 30d)")
+):
     if interval not in interval_mapping:
         raise HTTPException(status_code=400, detail="Invalid interval parameter")
 
@@ -171,7 +195,6 @@ def get_token_holders(mint_address: str = Query(..., description="Mint address o
 
     now = datetime.datetime.utcnow().replace(tzinfo=pytz.utc)
     since_time = now - datetime.timedelta(**{time_unit: time_count})
-
     since_time_formatted = since_time.strftime("%Y-%m-%dT%H:%M:%SZ")
 
     query = {
@@ -179,30 +202,34 @@ def get_token_holders(mint_address: str = Query(..., description="Mint address o
         "variables": "{}"
     }
 
-    response = requests.post(BITQUERY_URL, headers=headers, data=json.dumps(query))
+    async with httpx.AsyncClient() as client:
+        response = await client.post(BITQUERY_URL, headers=headers, json=query)
 
     if response.status_code != 200:
         raise HTTPException(status_code=response.status_code, detail="Failed to fetch data from Bitquery")
 
     data = response.json()
     solana_data = data.get("data", {}).get("Solana", {})
+
     token_supply_update = solana_data.get("TokenSupplyUpdates", [{}])[0].get("TokenSupplyUpdate", {})
     post_balance = float(token_supply_update.get("PostBalance", "0"))
 
     top_holders = solana_data.get("Top_holders", [])
     processed_holders = []
+
     for holder in top_holders:
         balance_update = holder.get("BalanceUpdate", {})
         balance = float(balance_update.get("balance", "0"))
-        balance_update["percentage_owned"] = (balance / post_balance if post_balance > 0 else 0) * 100
+        balance_update["percentage_owned"] = (balance / post_balance * 100) if post_balance > 0 else 0
         processed_holders.append(balance_update)
 
     return {"data": {"TokenSupplyUpdates": token_supply_update, "Top_holders": processed_holders}}
 
 
-
 @router.get("/trending-tokens", response_model=TrendingTokensResponse)
-def get_trending_tokens(interval: str = Query("1d", description="Time interval of the top (1m, 5m, 15m, 30m, 60m, 1d, 3d, 7d, 30d)")):
+async def get_trending_tokens(
+    interval: str = Query("1d", description="Time interval of the top (1m, 5m, 15m, 30m, 60m, 1d, 3d, 7d, 30d)")
+):
     if interval not in interval_mapping:
         raise HTTPException(status_code=400, detail="Invalid interval parameter")
 
@@ -211,7 +238,6 @@ def get_trending_tokens(interval: str = Query("1d", description="Time interval o
 
     now = datetime.datetime.utcnow().replace(tzinfo=pytz.utc)
     since_time = now - datetime.timedelta(**{time_unit: time_count})
-
     since_time_formatted = since_time.strftime("%Y-%m-%dT%H:%M:%SZ")
 
     query = {
@@ -219,31 +245,29 @@ def get_trending_tokens(interval: str = Query("1d", description="Time interval o
         "variables": "{}"
     }
 
-    response = requests.post(BITQUERY_URL, headers=headers, data=json.dumps(query))
+    async with httpx.AsyncClient() as client:
+        response = await client.post(BITQUERY_URL, headers=headers, json=query)
 
     if response.status_code != 200:
         raise HTTPException(status_code=response.status_code, detail="Failed to fetch data from Bitquery")
 
     data = response.json()
-
     trending_tokens = data.get("data", {}).get("Solana", {}).get("DEXTradeByTokens", [])
+
     if not trending_tokens:
         raise HTTPException(status_code=400, detail="Invalid response from Bitquery")
 
     for token in trending_tokens:
         price_last = token.get("Trade", {}).get("price_last", 0)
         price_1h_ago = token.get("Trade", {}).get("price_1h_ago", 0)
-        if price_1h_ago > 0:
-            token["price_change_percent"] = ((price_last - price_1h_ago) / price_1h_ago) * 100
-        else:
-            token["price_change_percent"] = 0
+        token["price_change_percent"] = ((price_last - price_1h_ago) / price_1h_ago) * 100 if price_1h_ago > 0 else 0
 
     return {"data": trending_tokens}
 
-
 IPFS_GATEWAYS = ["https://dweb.link", "https://ipfs.io", "https://cf-ipfs.com"]
 
-def fetch_ipfs_metadata(uri: str) -> Optional[Dict]:
+
+async def fetch_ipfs_metadata(uri: str) -> Optional[Dict]:
     """Получает метаданные токена по IPFS URI, используя альтернативные шлюзы при ошибках."""
     parsed_uri = urlparse(uri)
 
@@ -263,41 +287,42 @@ def fetch_ipfs_metadata(uri: str) -> Optional[Dict]:
             logging.error(f"Некорректный IPFS URI: {uri}")
             return {}
 
-    for gateway in IPFS_GATEWAYS:
-        new_uri = f"{gateway}/ipfs/{ipfs_hash}"
-        try:
-            response = requests.get(new_uri, timeout=5)
-            if response.status_code == 200:
-                metadata = response.json() or {}
+    async with httpx.AsyncClient() as client:
+        for gateway in IPFS_GATEWAYS:
+            new_uri = f"{gateway}/ipfs/{ipfs_hash}"
+            try:
+                response = await client.get(new_uri, timeout=5)
+                if response.status_code == 200:
+                    metadata = response.json() or {}
 
-                # Заменяем ссылку в `image` на ipfs.io
-                if "image" in metadata and isinstance(metadata["image"], str):
-                    image_parsed = urlparse(metadata["image"])
-                    for g in IPFS_GATEWAYS:
-                        if image_parsed.netloc in g:
-                            metadata["image"] = metadata["image"].replace(image_parsed.netloc, "ipfs.io")
-                            break
+                    # Заменяем ссылку в `image` на ipfs.io
+                    if "image" in metadata and isinstance(metadata["image"], str):
+                        image_parsed = urlparse(metadata["image"])
+                        for g in IPFS_GATEWAYS:
+                            if image_parsed.netloc in g:
+                                metadata["image"] = metadata["image"].replace(image_parsed.netloc, "ipfs.io")
+                                break
 
-                return metadata
-            else:
-                logging.warning(f"Неудачный статус {response.status_code} для {new_uri}")
-        except requests.RequestException as e:
-            logging.error(f"Ошибка запроса к {new_uri}: {e}")
+                    return metadata
+                else:
+                    logging.warning(f"Неудачный статус {response.status_code} для {new_uri}")
+            except httpx.RequestError as e:
+                logging.error(f"Ошибка запроса к {new_uri}: {e}")
 
     return {}
 
-def calculate_volumes(response):
+async def calculate_volumes(response: str) -> TokenVolumeResponse:
     data = json.loads(response)
 
     trades = data.get("Solana", {}).get("DEXTradeByTokens", [])
     balance_updates = data.get("Solana", {}).get("BalanceUpdates", [])
     token_supply_updates = data.get("Solana", {}).get("TokenSupplyUpdates", [])
 
+    if not trades:
+        raise HTTPException(status_code=400, detail="No trade data found")
 
-    # Создаем DataFrame
     df = pd.DataFrame(trades)
 
-    # Раскрываем вложенные объекты
     df["currency"] = df["Trade"].apply(lambda x: x["Currency"]["Symbol"] if x else None)
     df["dex"] = df["Trade"].apply(lambda x: x["Dex"]["ProtocolName"] if x else None)
     df["market"] = df["Trade"].apply(lambda x: x["Market"]["MarketAddress"] if x else None)
@@ -305,7 +330,6 @@ def calculate_volumes(response):
     df["min5_price"] = df["Trade"].apply(lambda x: x.get("min5", 0) if x else 0)
     df["end_price"] = df["Trade"].apply(lambda x: x.get("end", 0) if x else 0)
 
-    # Преобразуем столбцы в числовой формат, заполняя NaN значением 0
     numeric_columns = ["buy_volume", "sell_volume", "traded_volume", "trades", "makers"]
     for col in numeric_columns:
         df[col] = pd.to_numeric(df.get(col, 0), errors="coerce").fillna(0)
@@ -319,10 +343,8 @@ def calculate_volumes(response):
     buy_percentage = (total_buy_volume / total_traded_volume) * 100 if total_traded_volume else 0
     sell_percentage = (total_sell_volume / total_traded_volume) * 100 if total_traded_volume else 0
 
-    # Обработка BalanceUpdates
     total_balance_updates = sum(int(update.get("count", 0)) for update in balance_updates)
 
-    # Обработка TokenSupplyUpdates
     if token_supply_updates:
         post_balance = float(token_supply_updates[0]["TokenSupplyUpdate"].get("PostBalance", 0))
         post_balance_in_usd = float(token_supply_updates[0]["TokenSupplyUpdate"].get("PostBalanceInUSD", 0))
@@ -330,35 +352,10 @@ def calculate_volumes(response):
         post_balance = 0
         post_balance_in_usd = 0
 
-    # Вычисление метрик
-    result = {
-        "Общий объем торгов (USD)": total_traded_volume,
-        "Средний объем сделки (USD)": total_traded_volume / total_trades if total_trades else 0,
-        "Изменение цены (%)": ((df["end_price"].mean() - df["start_price"].mean()) / df["start_price"].mean()) * 100 if df["start_price"].mean() else 0,
-        "Buy/Sell Ratio": total_buy_volume / total_sell_volume if total_sell_volume else 0,
-        "Среднее число сделок на одного трейдера": total_trades / total_makers if total_makers else 0,
-        "Средний объем на одного трейдера (USD)": total_traded_volume / total_makers if total_makers else 0,
-        "Количество уникальных DEX-платформ": df["dex"].nunique(),
-        "Средний объем торгов на DEX": df.groupby("dex")["traded_volume"].sum().to_dict(),
-        "Ликвидность (Liquidity, USD)": total_traded_volume,
-        "Общий объем покупок (USD)": total_buy_volume,
-        "Общий объем продаж (USD)": total_sell_volume,
-        "Процент покупок (%)": buy_percentage,
-        "Процент продаж (%)": sell_percentage,
-        "Число холдеров": total_balance_updates,
-        "Текущий баланс токена": post_balance,
-        "Текущий баланс токена в USD": post_balance_in_usd
-    }
-
-    # Вывод результатов
-    for key, value in result.items():
-        logging.info(f"{key}: {value}")
-
     return TokenVolumeResponse(
         totalTradedVolume=total_traded_volume,
         averageTradeSize=total_traded_volume / total_trades if total_trades else 0,
-        priceChangePercentage=((df["end_price"].mean() - df["start_price"].mean()) / df["start_price"].mean()) * 100 if
-        df["start_price"].mean() else 0,
+        priceChangePercentage=((df["end_price"].mean() - df["start_price"].mean()) / df["start_price"].mean()) * 100 if df["start_price"].mean() else 0,
         buySellRatio=total_buy_volume / total_sell_volume if total_sell_volume else 0,
         averageTradesPerMaker=total_trades / total_makers if total_makers else 0,
         averageVolumePerMaker=total_traded_volume / total_makers if total_makers else 0,

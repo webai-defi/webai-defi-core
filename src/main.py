@@ -28,7 +28,9 @@ class LoggingMiddleware(BaseHTTPMiddleware):
 
         return response
 
-Base.metadata.create_all(bind=engine)
+async def create_database():
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
 
 app = FastAPI()
 
@@ -66,3 +68,4 @@ async def startup_event():
         decode_responses=True,
     )
     await FastAPILimiter.init(redis)
+    await create_database()
