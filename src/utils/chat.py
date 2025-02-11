@@ -8,14 +8,19 @@ from langchain_core.tools import Tool, StructuredTool
 from langchain_openai import ChatOpenAI
 from langchain.agents import AgentExecutor, create_tool_calling_agent
 
-from src.pasta import CHART_DETAILS_PASTA, TOP_PUMPFUN_TOKENS_BY_MARKET_CAP, TOKEN_VOLUME
+from src.pasta import (
+    CHART_DETAILS_PASTA, 
+    TOP_PUMPFUN_TOKENS_BY_MARKET_CAP, 
+    TOKEN_VOLUME, 
+    TOP_TOKEN_HOLDERS,
+    )
 from src.mock_chats_config import MOCK_CHATS_CONFIG
 from src.config import settings
 from src.schemas.chat import ChatMessage, ToolResponse, TokenSwapModel, TokenVolumeToolRequest
 from src.utils.websearch import perplexity_search, deep_research_twitter, web_deep_search
 
 
-def chart_details_and_stats(token_ca: str) -> ToolResponse:
+async def chart_details_and_stats(token_ca: str) -> ToolResponse:
     """Extract token ca from user question for further processing
     Calling this function will result in widget trigger for user, which shows token chart and stats
     you MUST answer to user question only with text from response field
@@ -30,7 +35,7 @@ def chart_details_and_stats(token_ca: str) -> ToolResponse:
     )
 
 
-def top_pump_fun_tokens_by_market_cap(*args, **kwargs) -> ToolResponse:
+async def top_pump_fun_tokens_by_market_cap(*args, **kwargs) -> ToolResponse:
     """Get top PumpFun tokens by market capitalization
     Calling this function will result in widget trigger for user,
     you MUST answer to user question only with text from response field
@@ -43,7 +48,7 @@ def top_pump_fun_tokens_by_market_cap(*args, **kwargs) -> ToolResponse:
     )
 
 
-def top_trading_tokens(*args, **kwargs) -> ToolResponse:
+async def top_trading_tokens(*args, **kwargs) -> ToolResponse:
     """Get top trading tokens from DEX?
     Calling this function will result in widget trigger for user,
     you MUST answer to user question only with text from response field
@@ -56,7 +61,7 @@ def top_trading_tokens(*args, **kwargs) -> ToolResponse:
     )
 
 
-def top_token_traders(
+async def top_token_traders(
     token_ca: str, 
     timeframe: Optional[Literal["1m", "5m", "15m", "30m", "60m", "1d", "3d", "7d", "30d"]] = None
 ) -> ToolResponse:
@@ -73,10 +78,10 @@ def top_token_traders(
             "mint_address": token_ca,
             "timeframe": timeframe
         },
-        response=TOKEN_VOLUME.format(token_ca=token_ca)
+        response=TOP_TOKEN_HOLDERS.format(token_ca=token_ca)
     )
 
-def token_volume(
+async def token_volume(
     token_ca: str, 
     timeframe: Optional[Literal["1m", "5m", "15m", "30m", "60m", "1d", "3d", "7d", "30d"]] = None
 ) -> ToolResponse:
@@ -96,7 +101,7 @@ def token_volume(
         response=TOKEN_VOLUME.format(token_ca=token_ca)
     )
 
-def swap_tokens(
+async def swap_tokens(
     swapA: str,
     swapB: str
 ) -> ToolResponse:
@@ -142,33 +147,39 @@ async def create_agent():
         Tool(
             name="ChartDetailsAndStats",
             func=chart_details_and_stats,
+            coroutine=chart_details_and_stats,
             description="Extract token ca from user question for further processing, example: '2Bs4MW8NKBDy6Bsn2RmGLNYNn4ofccVWMHEiRcVvpump'"
         ),
         Tool(
             name="TopPumpFunTokensByMarketCap",
             func=top_pump_fun_tokens_by_market_cap,
+            coroutine=top_pump_fun_tokens_by_market_cap,
             description="Get top PumpFun tokens by market capitalization",
         ),
         Tool(
             name="TopTradingTokens",
             func=top_trading_tokens,
+            coroutine=top_trading_tokens,
             description="Get top trading tokens"
         ),
         StructuredTool(
             name="TokenVolume",
             func=token_volume,
+            coroutine=token_volume,
             args_schema=TokenVolumeToolRequest,
             description="Extract token ca and timeframe (if presented) from user question to retrieve token volume, example of ca: '2Bs4MW8NKBDy6Bsn2RmGLNYNn4ofccVWMHEiRcVvpump'"
         ),
         StructuredTool(
             name="TopTokenTraders",
             func=top_token_traders,
+            coroutine=top_token_traders,
             args_schema=TokenVolumeToolRequest,
             description="Extract token ca and timeframe (if presented) from user question to retrieve top token traders, example of ca: '2Bs4MW8NKBDy6Bsn2RmGLNYNn4ofccVWMHEiRcVvpump'"
         ),
         StructuredTool.from_function(
             name="TokenSwap",
             func=swap_tokens,
+            coroutine=swap_tokens,
             description="Initiate token swap between two assets. Requires EXACTLY TWO parameters: swapA (token to swap from) and swapB (token to swap to). Must use format: 'TokenSwap' with {'swapA': 'TOKEN1', 'swapB': 'TOKEN2'}. Example: 'Swap BTC to SOL' becomes swapA='BTC', swapB='SOL'",
             args_schema=TokenSwapModel
         ),
