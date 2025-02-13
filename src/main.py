@@ -14,6 +14,7 @@ from src.db.session import Base, engine
 from src.utils.chat import create_agent
 from src.utils.logger import logger
 from starlette.middleware.base import BaseHTTPMiddleware
+from fastapi.middleware.cors import CORSMiddleware
 
 
 class LoggingMiddleware(BaseHTTPMiddleware):
@@ -44,6 +45,14 @@ def create_app() -> FastAPI:
     )
 
     application.add_middleware(LoggingMiddleware)
+
+    application.add_middleware(
+        CORSMiddleware,
+        allow_origins=["*"],
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
 
     routers = [user.router, chat.router, toolcall.router]
     for router in routers:
