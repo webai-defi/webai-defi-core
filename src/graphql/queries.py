@@ -312,3 +312,33 @@ query {{
 }}
 
 """
+
+"""
+Retrieve balance of wallet.
+Placeholders:
+    - mint_address
+Usage:
+
+balance_template.format(mint_address=mint_address)
+"""
+balance_template = """
+query MyQuery {{
+  Solana {{
+    BalanceUpdates(
+      limit: {{count: 20}}
+      where: {{BalanceUpdate: {{Account: {{Owner: {{is: "{mint_address}"}}}}}}}}
+      orderBy: {{descendingByField: "BalanceUpdate_Balance_maximum"}}
+    ) {{
+      BalanceUpdate {{
+        Balance: PostBalance(maximum: Block_Slot)
+        Currency {{
+          Name
+          Symbol
+          MintAddress
+          Uri
+        }}
+      }}
+    }}
+  }}
+}}
+"""

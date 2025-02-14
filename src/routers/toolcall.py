@@ -12,7 +12,8 @@ from src.schemas.chart import ChartResponse
 from src.schemas.tokenvolume import TokenVolumeResponse
 from src.schemas.pumpfuntoptokens import PumpFunResponse
 from src.schemas.topresponse import TopTradersResponse, TokenHoldersResponse, TrendingTokensResponse
-from src.graphql.queries import chart_query_template, pumpfun_token_sorted_by_marketcap, token_info_by_mint_address_template, top_traders_template, top_holders_template, top_trending_template
+from src.schemas.balance import WalletBalanceResponse
+from src.graphql.queries import chart_query_template, pumpfun_token_sorted_by_marketcap, token_info_by_mint_address_template, top_traders_template, top_holders_template, top_trending_template, balance_template
 from typing import List, Optional, Dict
 from src.config import settings
 from urllib.parse import urlparse
@@ -263,6 +264,62 @@ async def get_trending_tokens(
         token["price_change_percent"] = ((price_last - price_1h_ago) / price_1h_ago) * 100 if price_1h_ago > 0 else 0
 
     return {"data": trending_tokens}
+
+
+
+@router.get("/wallet-balance", response_model=WalletBalanceResponse)
+@log_exceptions
+async def get_wallet_balance(
+    mint_address: str = Query(..., description="Mint address of wallet")
+):
+    """Retrieve balance of wallet and modify it with ipfs data"""
+    query = {
+        "query": balance_template.format(mint_address=mint_address),
+        "variables": "{}"
+    }
+    async with httpx.AsyncClient() as client:
+        response = await client.post(BITQUERY_URL, headers=headers, json=query)
+
+    if response.status_code != 200:
+        raise HTTPException(status_code=response.status_code, detail="Ошибка запроса к Bitquery")
+
+    data = response.json()
+    balance_updates = data.get("data", {}).get("Solana", {}).get("BalanceUpdates", [])
+
+    # Exclude lines without uri
+    balance_updates = [b for b in balance_updates if b["BalanceUpdate"]["Currency"]["Uri"]]
+
+    # Modify with ipfs metadata
+    async with httpx.AsyncClient() as client:
+        for balance_update in balance_updates:
+            uri = balance_update["BalanceUpdate"]["Currency"]["Uri"]
+            metadata = await fetch_ipfs_metadata(uri) if uri else {}
+            balance_update["BalanceUpdate"]["Currency"].update(metadata)
+
+    result = {
+        "data": {
+            "BalanceUpdates": [
+                {
+                    "Balance": b["BalanceUpdate"]["Balance"],
+                    "Currency": {
+                        "MintAddress": b["BalanceUpdate"]["Currency"]["MintAddress"],
+                        "Name": b["BalanceUpdate"]["Currency"].get("Name", ""),
+                        "Symbol": b["BalanceUpdate"]["Currency"].get("Symbol", ""),
+                        "Uri": b["BalanceUpdate"]["Currency"]["Uri"],
+                        "description": b["BalanceUpdate"]["Currency"].get("description", ""),
+                        "image": b["BalanceUpdate"]["Currency"].get("image", ""),
+                        "twitter": b["BalanceUpdate"]["Currency"].get("twitter", ""),
+                        "website": b["BalanceUpdate"]["Currency"].get("website", ""),
+                        "createdOn": b["BalanceUpdate"]["Currency"].get("createdOn", "")
+                    }
+                }
+                for b in balance_updates if "BalanceUpdate" in b and "Currency" in b["BalanceUpdate"]
+            ]
+        }
+    }
+
+    return result
+
 
 IPFS_GATEWAYS = ["https://dweb.link", "https://ipfs.io", "https://cf-ipfs.com"]
 
