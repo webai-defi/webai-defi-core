@@ -56,6 +56,7 @@ async def create_or_update_chat(chat_data: ChatCreateUpdate, wallet_id: str, db:
 
     result = await db.execute(select(Chat).filter(Chat.uuid == chat_data.uuid))
     db_chat = result.scalars().first()
+
     if not db_chat:
         logger.info(f"Chat not found with chat_uuid: {chat_data.uuid}, creating new")
         result = await db.execute(select(User).filter(User.wallet_id == wallet_id))
@@ -63,10 +64,21 @@ async def create_or_update_chat(chat_data: ChatCreateUpdate, wallet_id: str, db:
         if not db_user:
             raise HTTPException(status_code=404, detail="User not found")
 
-        db_chat = Chat(uuid=chat_data.uuid, name=chat_data.name or "New Chat", wallet_id=wallet_id)
+        db_chat = Chat(
+            uuid=chat_data.uuid,
+            name=chat_data.name or "New Chat",
+            wallet_id=wallet_id
+        )
         db.add(db_chat)
         await db.commit()
         await db.refresh(db_chat)
+    else:
+        # Если чат уже существует и name передан, обновляем его
+        if chat_data.name is not None:
+            db_chat.name = chat_data.name
+            db.add(db_chat)
+            await db.commit()
+            await db.refresh(db_chat)
 
     new_question = ChatHistory(chat_id=db_chat.id, message=chat_data.question)
     new_answer = ChatHistory(chat_id=db_chat.id, message=chat_data.answer)

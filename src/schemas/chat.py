@@ -26,7 +26,7 @@ class ToolRequestWithTokenAndTimeframe(BaseModel):
 
 class ChatCreateUpdate(BaseModel):
     uuid: str = Field(description="uuid, generated on frontend")
-    name: Optional[str] = None
+    name: Optional[str] = Field(default=None, description="Optional chat name")
     question: str = Field(description="Question from user")
     answer: str = Field(description="Answer from model")
 
