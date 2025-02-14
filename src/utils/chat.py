@@ -14,6 +14,7 @@ from src.pasta import (
     TOP_PUMPFUN_TOKENS_BY_MARKET_CAP, 
     TOKEN_VOLUME, 
     TOP_TOKEN_HOLDERS,
+    WALLET_BALANCE,
     )
 from src.mock_chats_config import MOCK_CHATS_CONFIG
 from src.config import settings
@@ -33,6 +34,22 @@ async def chart_details_and_stats(token_ca: str) -> ToolResponse:
             "token_ca": token_ca
         },
         response=CHART_DETAILS_PASTA.format(token_ca=token_ca)
+    )
+
+
+async def tokens_holded_by_wallet(mint_address: str) -> ToolResponse:
+    """Extract wallet mint address from user question for further processing
+    Calling this function will result in widget trigger for user, which shows
+    tokens and their volumes holded by a wallet
+    you MUST answer to user question only with text from response field
+    in the output of this function"""
+    return ToolResponse(
+        type="tokens-holded-by-wallet",
+        endpoint="/api/toolcall/wallet-balance",
+        args= {
+            "mint_address": mint_address
+        },
+        response=WALLET_BALANCE.format(mint_address=mint_address)
     )
 
 
@@ -148,6 +165,12 @@ async def create_agent():
             func=chart_details_and_stats,
             coroutine=chart_details_and_stats,
             description="Extract token ca from user question for further processing, example: '2Bs4MW8NKBDy6Bsn2RmGLNYNn4ofccVWMHEiRcVvpump'"
+        ),
+        Tool(
+            name="TokenBalanceAndTokens",
+            func=tokens_holded_by_wallet,
+            coroutine=tokens_holded_by_wallet,
+            description="Extract wallet mint address for further processing: retrieving wallet balance and tokens holded by it"
         ),
         Tool(
             name="TopPumpFunTokensByMarketCap",
