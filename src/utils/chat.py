@@ -1,3 +1,4 @@
+import json
 import asyncio
 
 from time import sleep
@@ -227,7 +228,8 @@ async def stream_response(agent_executor: AgentExecutor, messages: list[ChatMess
             if content:
                 yield content
         elif kind == "on_tool_end":
-            yield str(event) + "\n"
+            event["data"]["output"] = event["data"]["output"].dict()
+            yield json.dumps(event) + "\n"
             
 
 def mock_responses(input_message: str) -> Optional[str]:
