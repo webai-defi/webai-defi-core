@@ -158,7 +158,7 @@ async def create_agent():
             name="WebDeepSearch",
             func=web_deep_search,
             coroutine=web_deep_search,
-            description="Perform a search using Perplexity, very deep and advanced mode"
+            description="Perform a search using Perplexity, very deep and advanced mode, use only for two-three level questions cause it works 20 seconds"
         ),
         Tool(
             name="ChartDetailsAndStats",
@@ -246,13 +246,26 @@ async def stream_response(agent_executor: AgentExecutor, messages: list[ChatMess
         version="v1",
     ):
         kind = event["event"]
+        print(event["data"])
         if kind == "on_chat_model_stream":
             content = event["data"]["chunk"].content
             if content:
                 yield content
+        elif kind == "on_tool_start" and "input" in event["data"]:
+            # Пропускаем начало выполнения инструментов
+            continue
         elif kind == "on_tool_end":
-            event["data"]["output"] = event["data"]["output"].dict()
-            yield json.dumps(event) + "\n"
+            output_data = event["data"].get("output", {})
+            tool_name = event.get("name", "")
+            
+            if tool_name in ["PerplexitySearch", "DeepResearchTwitter", "WebDeepSearch"]:
+                # Для поисковых инструментов возвращаем только текстовый ответ от гпт-шки
+                continue
+            else:
+                # Для остальных инструментов сохраняем оригинальное поведение
+                if hasattr(output_data, "dict"):
+                    event["data"]["output"] = output_data.dict()
+                yield json.dumps(event) + "\n"
             
 
 def mock_responses(input_message: str) -> Optional[str]:

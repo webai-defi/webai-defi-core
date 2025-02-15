@@ -4,31 +4,9 @@ import os
 
 load_dotenv()
 
-YOUCOM_API_KEY = os.getenv("YOUCOM_API_KEY")
 PERPLEXITY_API_KEY = os.getenv("PERPLEXITY_API_KEY")
-
-async def ai_websearch(query):
-    # Check if API key exists
-    if not YOUCOM_API_KEY:
-        raise ValueError("YOUCOM_API_KEY not found in environment variables")
     
-    headers = {"X-API-Key": YOUCOM_API_KEY}
-    params = {"query": query}
-    
-    try:
-        async with httpx.AsyncClient() as client:
-            response = await client.get(
-                "https://api.ydc-index.io/search",
-                params=params, 
-                headers=headers,
-                timeout=30  # Add timeout for safety
-            )
-            response.raise_for_status()  # Raise exception for bad status codes
-            return response.json()
-    except httpx.HTTPError as e:
-        raise Exception(f"Error during API request: {str(e)}")
-    
-async def perplexity_search(query):
+async def perplexity_search(query) -> dict:
     # Check if API key exists
     if not PERPLEXITY_API_KEY:
         raise ValueError("PERPLEXITY_API_KEY not found in environment variables")
@@ -69,14 +47,11 @@ async def perplexity_search(query):
             response.raise_for_status()
             
             result = response.json()
-            return {
-                "answer": result["choices"][0]["message"]["content"],
-                "citations": result.get("citations", [])
-            }
+            return {"answer": result["choices"][0]["message"]["content"]}
     except httpx.HTTPError as e:
         raise Exception(f"Error during Perplexity API request: {str(e)}")
     
-async def deep_research_twitter(topic, time_range="day"):
+async def deep_research_twitter(topic, time_range="day") -> dict:
     """
     Performs deep research on Twitter using Perplexity API
     time_range: 'day' or 'week'
@@ -91,7 +66,7 @@ async def deep_research_twitter(topic, time_range="day"):
         f"What are the expert Twitter opinions and trending discussions about {topic} from the last {time_range}?"
     ]
     
-    results = []
+    answers = []
     for prompt in prompts:
         try:
             headers = {
@@ -120,18 +95,14 @@ async def deep_research_twitter(topic, time_range="day"):
                 response.raise_for_status()
                 
                 result = response.json()
-                results.append({
-                    "query": prompt,
-                    "answer": result["choices"][0]["message"]["content"],
-                    "citations": result.get("citations", [])
-                })
+                answers.append(result["choices"][0]["message"]["content"])
                 
         except httpx.HTTPError as e:
             raise Exception(f"Error during deep research: {str(e)}")
     
-    return results
+    return {"answer": "\n".join(answers)}
 
-async def web_deep_search(query, search_type="comprehensive"):
+async def web_deep_search(query, search_type="comprehensive") -> dict:
     """
     Performs deep web search using Perplexity API
     search_type: 'comprehensive' or 'focused'
@@ -182,10 +153,7 @@ async def web_deep_search(query, search_type="comprehensive"):
             response.raise_for_status()
             
             result = response.json()
-            return {
-                "answer": result["choices"][0]["message"]["content"],
-                "citations": result.get("citations", [])
-            }
+            return {"answer": result["choices"][0]["message"]["content"]}
             
     except httpx.HTTPError as e:
         raise Exception(f"Error during web deep search: {str(e)}")
@@ -196,15 +164,18 @@ async def web_deep_search(query, search_type="comprehensive"):
 """
 # Глубокий анализ темы за последний день
 results = await deep_research_topic("Bitcoin price movement", time_range="day")
+print(results["answer"])
 
 # Всесторонний поиск по интернету
 comprehensive = await web_deep_search("Impact of AI on cryptocurrency trading", search_type="comprehensive")
+print(comprehensive["answer"])
 
 # Сфокусированный поиск
 focused = await web_deep_search("Current Bitcoin mining difficulty", search_type="focused")
+print(focused["answer"])
 """
 
 if __name__ == "__main__":
     import asyncio
     result = asyncio.run(perplexity_search("What is the capital of France?"))
-    print(result)
+    print(result["answer"])
