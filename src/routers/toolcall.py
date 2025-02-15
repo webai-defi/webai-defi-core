@@ -13,7 +13,7 @@ from src.schemas.tokenvolume import TokenVolumeResponse
 from src.schemas.pumpfuntoptokens import PumpFunResponse
 from src.schemas.topresponse import TopTradersResponse, TokenHoldersResponse, TrendingTokensResponse
 from src.schemas.balance import WalletBalanceResponse
-from src.graphql.queries import chart_query_template, pumpfun_token_sorted_by_marketcap, token_info_by_mint_address_template, top_traders_template, top_holders_template, top_trending_template, balance_template
+from src.graphql.queries import chart_query_template, pumpfun_token_sorted_by_marketcap, token_info_template, top_traders_template, top_holders_template, top_trending_template, balance_template
 from typing import List, Optional, Dict
 from src.config import settings
 from urllib.parse import urlparse
@@ -52,13 +52,15 @@ async def get_chart(
     time_unit = interval_mapping[interval]["unit"]
     time_count = interval_mapping[interval]["count"]
 
+    key, value = await classify_input(mint_address)
+
     query = {
-        "query": chart_query_template.format(mint_address=mint_address, time_unit=time_unit, time_count=time_count),
+        "query": chart_query_template.format(key=key, value=value, time_unit=time_unit, time_count=time_count),
         "variables": "{}"
     }
 
     async with httpx.AsyncClient() as client:
-        response = await client.post(BITQUERY_URL, headers=headers, json=query)
+        response = await client.post(BITQUERY_URL, headers=headers, json=query, timeout=30.0)
 
     if response.status_code != 200:
         raise HTTPException(status_code=response.status_code, detail="Failed to fetch data from Bitquery")
@@ -79,7 +81,8 @@ async def get_pumpfun_top_tokens():
         response = await client.post(
             BITQUERY_URL,
             headers=headers,
-            json={"query": pumpfun_token_sorted_by_marketcap, "variables": "{}"}
+            json={"query": pumpfun_token_sorted_by_marketcap, "variables": "{}"},
+            timeout=30.0
         )
 
     if response.status_code != 200:
@@ -125,9 +128,12 @@ async def get_volume(
     since_time_formatted = since_time.strftime("%Y-%m-%dT%H:%M:%SZ")
     now_time_formatted = now.strftime("%Y-%m-%dT%H:%M:%SZ")
 
+    key, value = await classify_input(mint_address)
+
     query = {
-        "query": token_info_by_mint_address_template.format(
-            mint_address=mint_address,
+        "query": token_info_template.format(
+            key=key,
+            value=value,
             since_time_formatted=since_time_formatted,
             now_time_formatted=now_time_formatted
         ),
@@ -135,7 +141,7 @@ async def get_volume(
     }
 
     async with httpx.AsyncClient() as client:
-        response = await client.post(BITQUERY_URL, headers=headers, json=query)
+        response = await client.post(BITQUERY_URL, headers=headers, json=query, timeout=30.0)
 
     if response.status_code != 200:
         raise HTTPException(status_code=response.status_code, detail="Failed to fetch data from Bitquery")
@@ -163,13 +169,15 @@ async def get_top_traders(
     since_time = now - datetime.timedelta(**{time_unit: time_count})
     since_time_formatted = since_time.strftime("%Y-%m-%dT%H:%M:%SZ")
 
+    key, value = await classify_input(mint_address)
+
     query = {
-        "query": top_traders_template.format(mint_address=mint_address, since_time_formatted=since_time_formatted),
+        "query": top_traders_template.format(key=key, value=value, since_time_formatted=since_time_formatted),
         "variables": "{}"
     }
 
     async with httpx.AsyncClient() as client:
-        response = await client.post(BITQUERY_URL, headers=headers, json=query)
+        response = await client.post(BITQUERY_URL, headers=headers, json=query, timeout=30.0)
 
     if response.status_code != 200:
         raise HTTPException(status_code=response.status_code, detail="Failed to fetch data from Bitquery")
@@ -198,13 +206,15 @@ async def get_token_holders(
     since_time = now - datetime.timedelta(**{time_unit: time_count})
     since_time_formatted = since_time.strftime("%Y-%m-%dT%H:%M:%SZ")
 
+    key, value = await classify_input(mint_address)
+
     query = {
-        "query": top_holders_template.format(mint_address=mint_address, since_time_formatted=since_time_formatted),
+        "query": top_holders_template.format(key=key, value=value, since_time_formatted=since_time_formatted),
         "variables": "{}"
     }
 
     async with httpx.AsyncClient() as client:
-        response = await client.post(BITQUERY_URL, headers=headers, json=query)
+        response = await client.post(BITQUERY_URL, headers=headers, json=query, timeout=30.0)
 
     if response.status_code != 200:
         raise HTTPException(status_code=response.status_code, detail="Failed to fetch data from Bitquery")
@@ -247,7 +257,7 @@ async def get_trending_tokens(
     }
 
     async with httpx.AsyncClient() as client:
-        response = await client.post(BITQUERY_URL, headers=headers, json=query)
+        response = await client.post(BITQUERY_URL, headers=headers, json=query, timeout=30.0)
 
     if response.status_code != 200:
         raise HTTPException(status_code=response.status_code, detail="Failed to fetch data from Bitquery")
@@ -278,7 +288,7 @@ async def get_wallet_balance(
         "variables": "{}"
     }
     async with httpx.AsyncClient() as client:
-        response = await client.post(BITQUERY_URL, headers=headers, json=query)
+        response = await client.post(BITQUERY_URL, headers=headers, json=query, timeout=30.0)
 
     if response.status_code != 200:
         raise HTTPException(status_code=response.status_code, detail="Ошибка запроса к Bitquery")
@@ -427,3 +437,20 @@ async def calculate_volumes(response: str) -> TokenVolumeResponse:
         marketCap=post_balance,
         marketCapInUSD=post_balance_in_usd
     )
+
+async def classify_input(mint_address: str):
+    if mint_address.startswith("$"):
+        key = "Symbol"
+        #value = mint_address - тикеры в битквери можно отправлять и с долларом и без, но кажется без находит реальные токены
+        value = mint_address[1:]
+    elif len(mint_address) <= 6 and " " not in mint_address:
+        key = "Symbol"
+        #value = f"${mint_address}"
+        value = mint_address
+    elif " " in mint_address or mint_address.isalpha():
+        key = "Name"
+        value = mint_address
+    else:
+        key = "MintAddress"
+        value = mint_address
+    return key, value

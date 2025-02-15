@@ -1,12 +1,13 @@
 """
 Получает график токена в формате ohcl.
 На вход нужно заменить плейсхолдеры:
-    - mint_address
+    - key
+    - value
     - time_unit
     - time_count
 Пример использования:
 
-chart_query_template.format(mint_address=mint_address, time_unit=time_unit, time_count=time_count)
+chart_query_template.format(key=key, value=value, time_unit=time_unit, time_count=time_count)
 """
 
 chart_query_template = """
@@ -17,7 +18,7 @@ query MyQuery {{
       where: {{
         Trade: {{
           Currency: {{
-            MintAddress: {{is: "{mint_address}"}}
+            {key}: {{is: "{value}"}}
           }}
           Side: {{
             Currency: {{
@@ -78,22 +79,23 @@ pumpfun_token_sorted_by_marketcap = """
 """
 
 """
-Получает информацию о токене по его контракту.
+Получает информацию о токене по его идентификатору.
 На вход нужно заменить плейсхолдеры:
-    - mint_address
+    - key - по чему искать токен (са, имя, тикер)
+    - value - значение поиска (сам са, имя, тикер)
     - since_time_formatted
     - now_time_formatted
 Пример использования:
 
-token_info_by_mint_address_template.format(mint_address=mint_address, since_time_formatted=since_time_formatted, now_time_formatted=now_time_formatted)
+token_info_template.format(key=key, value=value, since_time_formatted=since_time_formatted, now_time_formatted=now_time_formatted)
 """
-token_info_by_mint_address_template = """
+token_info_template = """
 query MyQuery {{
   Solana {{
     DEXTradeByTokens(
       where: {{
         Transaction: {{Result: {{Success: true}}}},
-        Trade: {{Currency: {{MintAddress: {{is: "{mint_address}"}}}}}},
+        Trade: {{Currency: {{{key}: {{is: "{value}"}}}}}},
         Block: {{Time: {{since: "{since_time_formatted}"}}}}
       }}
     ) {{
@@ -145,7 +147,7 @@ query MyQuery {{
       sells_5min: count(if: {{Trade: {{Side: {{Type: {{is: sell}}}}}}, Block: {{Time: {{after: "{now_time_formatted}"}}}}}})
     }}
     TokenSupplyUpdates(
-      where: {{TokenSupplyUpdate: {{Currency: {{MintAddress: {{is: "{mint_address}"}}}}}}}}
+      where: {{TokenSupplyUpdate: {{Currency: {{{key}: {{is: "{value}"}}}}}}}}
       limit: {{count: 1}}
       orderBy: {{descending: Block_Time}}
     ) {{
@@ -156,7 +158,7 @@ query MyQuery {{
     }}
       BalanceUpdates(
           where: {{
-            BalanceUpdate: {{Currency: {{MintAddress: {{is: "{mint_address}"}}}}}}
+            BalanceUpdate: {{Currency: {{{key}: {{is: "{value}"}}}}}}
           }}
         ) {{
           count: count(distinct: BalanceUpdate_Account_Owner)
@@ -168,11 +170,12 @@ query MyQuery {{
 """
 Выводит топ трейдеров по обьему по токену.
 На вход нужно заменить плейсхолдеры:
-    - mint_address
+    - key
+    - value
     - since_time_formatted
 Пример использования:
 
-top_traders_template.format(mint_address=mint_address, since_time_formatted=since_time_formatted)
+top_traders_template.format(key=key, value=value, since_time_formatted=since_time_formatted)
 """
 
 top_traders_template = """
@@ -181,7 +184,7 @@ query TopTraders {{
     DEXTradeByTokens(
       orderBy: {{descendingByField: "volumeUsd"}}
       limit: {{count: 20}}
-      where: {{Trade: {{Currency: {{MintAddress: {{is: "{mint_address}"}}}}, Side: {{Amount: {{gt: "0"}}}}}}, Transaction: {{Result: {{Success: true}}}}, Block: {{Time: {{since: "{since_time_formatted}"}}}}}}
+      where: {{Trade: {{Currency: {{{key}: {{is: "{value}"}}}}, Side: {{Amount: {{gt: "0"}}}}}}, Transaction: {{Result: {{Success: true}}}}, Block: {{Time: {{since: "{since_time_formatted}"}}}}}}
     ) {{
       Trade {{
         Account {{
@@ -204,7 +207,7 @@ top_holders_template = """
 query MyQuery {{
   Solana {{
     TokenSupplyUpdates(
-      where: {{TokenSupplyUpdate: {{Currency: {{MintAddress: {{is: "{mint_address}"}}}}}}}}
+      where: {{TokenSupplyUpdate: {{Currency: {{{key}: {{is: "{value}"}}}}}}}}
       limit: {{count: 1}}
       orderBy: {{descending: Block_Time}}
     ) {{
@@ -216,7 +219,7 @@ query MyQuery {{
     Top_holders: BalanceUpdates(
       orderBy: {{descendingByField: "BalanceUpdate_balance_maximum"}}
       limit: {{count: 20}}
-      where: {{BalanceUpdate: {{Currency: {{MintAddress: {{is: "{mint_address}"}}}}}}, Block: {{Time: {{since: "{since_time_formatted}"}}}}}}
+      where: {{BalanceUpdate: {{Currency: {{{key}: {{is: "{value}"}}}}}}, Block: {{Time: {{since: "{since_time_formatted}"}}}}}}
     ) {{
       BalanceUpdate {{
         Account {{
