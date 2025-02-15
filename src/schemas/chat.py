@@ -11,7 +11,7 @@ class ChatRequest(BaseModel):
     messages: List[ChatMessage] = Field(description="List of messages in current chat")
 
 class ToolResponse(BaseModel):
-    type: Literal["chart-and-stats", "stats-volume", "token-top", "swap", "top-traders", "backend"]
+    type: Literal["chart-and-stats", "stats-volume", "token-top", "swap", "top-traders", "tokens-holded-by-wallet", "backend"]
     endpoint: Optional[str] = Field(
         default=None, 
         description="Endpoint to call, if None - no endpoint needed", 
