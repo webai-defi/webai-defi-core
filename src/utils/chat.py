@@ -246,7 +246,6 @@ async def stream_response(agent_executor: AgentExecutor, messages: list[ChatMess
         version="v1",
     ):
         kind = event["event"]
-        print(event["data"])
         if kind == "on_chat_model_stream":
             content = event["data"]["chunk"].content
             if content:
