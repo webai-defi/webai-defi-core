@@ -13,34 +13,57 @@ chart_query_template.format(key=key, value=value, time_unit=time_unit, time_coun
 chart_query_template = """
 query MyQuery {{
   Solana {{
-    DEXTradeByTokens(
-      orderBy: {{descendingByField: "Block_Timefield"}}
+    ohcl: DEXTradeByTokens(
+          orderBy: {{descendingByField: "Block_Timefield"}}
+          where: {{
+            Trade: {{
+              Currency: {{
+                {key}: {{is: "{value}"}}
+              }}
+              Side: {{
+                Currency: {{
+                  MintAddress: {{is: "So11111111111111111111111111111111111111112"}}
+                }}
+              }}
+              PriceAsymmetry: {{lt: 0.1}}
+            }}
+          }}
+          limit: {{count: 100}}
+        ) {{
+          Block {{
+            Timefield: Time(interval: {{in: {time_unit}, count: {time_count}}})
+          }}
+          volume: sum(of: Trade_Amount)
+          Trade {{
+            high: Price(maximum: Trade_Price)
+            low: Price(minimum: Trade_Price)
+            open: Price(minimum: Block_Slot)
+            close: Price(maximum: Block_Slot)
+            price_last: PriceInUSD(maximum: Block_Slot)
+          }}
+          count
+        }}
+    token_info: DEXTradeByTokens(
       where: {{
         Trade: {{
           Currency: {{
             {key}: {{is: "{value}"}}
           }}
-          Side: {{
-            Currency: {{
-              MintAddress: {{is: "So11111111111111111111111111111111111111112"}}
-            }}
-          }}
-          PriceAsymmetry: {{lt: 0.1}}
         }}
       }}
-      limit: {{count: 100}}
+      orderBy: {{descending: Block_Time}}
+      limit: {{count: 1}}
     ) {{
-      Block {{
-        Timefield: Time(interval: {{in: {time_unit}, count: {time_count}}})
-      }}
-      volume: sum(of: Trade_Amount)
       Trade {{
-        high: Price(maximum: Trade_Price)
-        low: Price(minimum: Trade_Price)
-        open: Price(minimum: Block_Slot)
-        close: Price(maximum: Block_Slot)
+        Currency {{
+          Name
+          Symbol
+          Uri
+          MintAddress
+        }}
+        PriceInUSD
+        Price
       }}
-      count
     }}
   }}
 }}

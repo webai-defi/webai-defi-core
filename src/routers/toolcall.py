@@ -73,10 +73,24 @@ async def get_chart(
 
     data = response.json()
 
-    if "data" not in data or "Solana" not in data["data"] or "DEXTradeByTokens" not in data["data"]["Solana"]:
+    if "data" not in data or "Solana" not in data["data"] or "ohcl" not in data["data"]["Solana"]:
         raise HTTPException(status_code=400, detail="Invalid response from Bitquery")
 
-    return {"data": data["data"]["Solana"]["DEXTradeByTokens"]}
+    ohcl = data["data"]["Solana"]["ohcl"]
+    token_info = data["data"]["Solana"]["token_info"][0]["Trade"]
+
+    async with httpx.AsyncClient() as client:
+        uri = token_info["Currency"].get("Uri")
+        metadata = await fetch_ipfs_metadata(uri) if uri else {}
+        token_info["Currency"].update({
+            "description": metadata.get("description", ""),
+            "image": metadata.get("image", ""),
+            "twitter": metadata.get("twitter", ""),
+            "website": metadata.get("website", ""),
+            "createdOn": metadata.get("createdOn", "")
+        })
+
+    return {"data": {"ohcl": ohcl, "token_info": token_info}}
 
 
 
