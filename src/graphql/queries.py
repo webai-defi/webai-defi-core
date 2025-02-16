@@ -35,11 +35,10 @@ query MyQuery {{
           }}
           volume: sum(of: Trade_Amount)
           Trade {{
-            high: Price(maximum: Trade_Price)
-            low: Price(minimum: Trade_Price)
-            open: Price(minimum: Block_Slot)
-            close: Price(maximum: Block_Slot)
-            price_last: PriceInUSD(maximum: Block_Slot)
+            high: PriceInUSD(maximum: Trade_Price)
+            low: PriceInUSD(minimum: Trade_Price)
+            open: PriceInUSD(minimum: Block_Slot)
+            close: PriceInUSD(maximum: Block_Slot)
           }}
           count
         }}

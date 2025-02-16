@@ -6,7 +6,6 @@ class TradeData(BaseModel):
     high: float
     low: float
     open: float
-    price_last: float
 
 class BlockData(BaseModel):
     Timefield: str  # Время блока
