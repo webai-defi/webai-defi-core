@@ -442,11 +442,11 @@ async def classify_input(mint_address: str):
     if mint_address.startswith("$"):
         key = "Symbol"
         #value = mint_address - тикеры в битквери можно отправлять и с долларом и без, но кажется без находит реальные токены
-        value = mint_address[1:]
+        value = mint_address[1:].upper()
     elif len(mint_address) <= 6 and " " not in mint_address:
         key = "Symbol"
         #value = f"${mint_address}"
-        value = mint_address
+        value = mint_address.upper()
     elif " " in mint_address or mint_address.isalpha():
         key = "Name"
         value = mint_address
