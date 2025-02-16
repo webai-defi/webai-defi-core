@@ -295,12 +295,17 @@ query {{
       }}
       orderBy: {{descendingByField: "usd"}}
       limit: {{count: 20}}
+      limitBy: {{
+        by: Trade_Currency_MintAddress,
+        count: 1
+      }}
     ) {{
       Trade {{
         Currency {{
           Symbol
           Name
           MintAddress
+          Uri
         }}
         price_last: PriceInUSD(maximum: Block_Slot)
         price_1h_ago: PriceInUSD(minimum: Block_Slot)

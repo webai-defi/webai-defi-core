@@ -34,6 +34,11 @@ interval_mapping = {
     "15m": {"unit": "minutes", "count": 15},
     "30m": {"unit": "minutes", "count": 30},
     "60m": {"unit": "minutes", "count": 60},
+    "1h": {"unit": "hours", "count": 1},
+    "4h": {"unit": "hours", "count": 4},
+    "6h": {"unit": "hours", "count": 6},
+    "8h": {"unit": "hours", "count": 8},
+    "12h": {"unit": "hours", "count": 12},
     "1d": {"unit": "days", "count": 1},
     "3d": {"unit": "days", "count": 3},
     "7d": {"unit": "days", "count": 7},
@@ -44,9 +49,10 @@ interval_mapping = {
 @router.get("/market-chart", response_model=ChartResponse)
 async def get_chart(
     mint_address: str = Query(..., description="Mint address of the token"),
-    interval: str = Query("1m", description="Time interval for the chart (1m, 5m, 15m, 30m, 60m, 1d, 3d, 7d, 30d)")
+    interval: str = Query("4h", description="Time interval for the chart (1m, 5m, 15m, 30m, 60m, 1d, 3d, 7d, 30d)")
 ):
     if interval not in interval_mapping:
+        interval = "4h"
         raise HTTPException(status_code=400, detail="Invalid interval parameter")
 
     time_unit = interval_mapping[interval]["unit"]
@@ -273,6 +279,18 @@ async def get_trending_tokens(
         price_1h_ago = token.get("Trade", {}).get("price_1h_ago", 0)
         token["price_change_percent"] = ((price_last - price_1h_ago) / price_1h_ago) * 100 if price_1h_ago > 0 else 0
 
+    async with httpx.AsyncClient() as client:
+        for token in trending_tokens:
+            uri = token["Trade"]["Currency"].get("Uri")
+            metadata = await fetch_ipfs_metadata(uri) if uri else {}
+            token["Trade"]["Currency"].update({
+                "description": metadata.get("description", ""),
+                "image": metadata.get("image", ""),
+                "twitter": metadata.get("twitter", ""),
+                "website": metadata.get("website", ""),
+                "createdOn": metadata.get("createdOn", "")
+            })
+
     return {"data": trending_tokens}
 
 
@@ -337,6 +355,27 @@ IPFS_GATEWAYS = ["https://dweb.link", "https://ipfs.io", "https://cf-ipfs.com"]
 async def fetch_ipfs_metadata(uri: str) -> Optional[Dict]:
     """Получает метаданные токена по IPFS URI, используя альтернативные шлюзы при ошибках."""
     parsed_uri = urlparse(uri)
+
+    async with httpx.AsyncClient(follow_redirects=True) as client:
+        try:
+            response = await client.get(uri, timeout=5)
+
+            # Если получили редирект (302), делаем запрос по новому Location
+            if response.status_code == 302 and "Location" in response.headers:
+                redirected_url = response.headers["Location"]
+                logging.info(f"Редирект на {redirected_url}")
+                response = await client.get(redirected_url, timeout=5)
+
+            if response.status_code == 200:
+                metadata = response.json() or {}
+
+                # Если есть image, сразу возвращаем
+                if "image" in metadata and isinstance(metadata["image"], str):
+                    return metadata
+            else:
+                logging.warning(f"Неудачный статус {response.status_code} для {uri}")
+        except httpx.RequestError as e:
+            logging.error(f"Ошибка запроса к {uri}: {e}")
 
     # Проверяем, является ли URL IPFS-шлюзом
     ipfs_hash = None
