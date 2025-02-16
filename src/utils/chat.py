@@ -14,6 +14,7 @@ from src.pasta import (
     TOP_PUMPFUN_TOKENS_BY_MARKET_CAP, 
     TOKEN_VOLUME, 
     TOP_TOKEN_HOLDERS,
+    TOP_TOKEN_TRADERS,
     WALLET_BALANCE,
     )
 from src.mock_chats_config import MOCK_CHATS_CONFIG
@@ -84,14 +85,30 @@ async def top_token_traders(
     timeframe: Optional[str] = None
 ) -> ToolResponse:
     """Extract token ca and timeframe (if presented) from user question for further processing
-    The timeframes might be None or one of the following "1m", "5m", "15m", "30m", "60m", "1d", "3d", "7d", "30d",
-    where m - minutes, d - days.
     Calling this function will result in widget trigger for user,
     you MUST answer to user question only with text from response field
     in the output of this function"""
     return ToolResponse(
         type="top-traders",
         endpoint="/api/toolcall/top-traders",
+        args= {
+            "mint_address": token_ca,
+            "timeframe": timeframe if timeframe in settings.TIME_INTERVALS else None
+        },
+        response=TOP_TOKEN_TRADERS.format(token_ca=token_ca)
+    )
+
+async def top_token_holders(
+    token_ca: str, 
+    timeframe: Optional[str] = None
+) -> ToolResponse:
+    """Extract token ca and timeframe (if presented) from user question for further processing
+    Calling this function will result in widget trigger for user,
+    you MUST answer to user question only with text from response field
+    in the output of this function"""
+    return ToolResponse(
+        type="top-holders",
+        endpoint="/api/toolcall/top-holders",
         args= {
             "mint_address": token_ca,
             "timeframe": timeframe if timeframe in settings.TIME_INTERVALS else None
@@ -189,14 +206,21 @@ async def create_agent():
             func=token_volume,
             coroutine=token_volume,
             args_schema=ToolRequestWithTokenAndTimeframe,
-            description="""Extract token ca and timeframe (if presented) from user question to retrieve token volume, example of ca: '2Bs4MW8NKBDy6Bsn2RmGLNYNn4ofccVWMHEiRcVvpump', timeframes might be None or one of the following "1m", "5m", "15m", "30m", "60m", "1d", "3d", "7d", "30d" where m - minutes, d - days."""
+            description="""Extract token ca and timeframe (if presented) from user question to retrieve token volume, example of ca: '2Bs4MW8NKBDy6Bsn2RmGLNYNn4ofccVWMHEiRcVvpump', timeframes might be None or one of the following "1m", "5m", "15m", "30m", "60m", "1h", "4h", "6h", "8h", "12h", "1d", "3d", "7d", "30d" where m - minutes, d - days."""
         ),
         StructuredTool(
             name="TopTokenTraders",
             func=top_token_traders,
             coroutine=top_token_traders,
             args_schema=ToolRequestWithTokenAndTimeframe,
-            description="""Extract token ca and timeframe (if presented) from user question to retrieve top token traders, example of ca: '2Bs4MW8NKBDy6Bsn2RmGLNYNn4ofccVWMHEiRcVvpump', timeframes might be None or one of the following "1m", "5m", "15m", "30m", "60m", "1d", "3d", "7d", "30d" where m - minutes, d - days."""
+            description="""Extract token ca and timeframe (if presented) from user question to retrieve top token traders, example of ca: '2Bs4MW8NKBDy6Bsn2RmGLNYNn4ofccVWMHEiRcVvpump', timeframes might be None or one of the following "1m", "5m", "15m", "30m", "60m", "1h", "4h", "6h", "8h", "12h", "1d", "3d", "7d", "30d" where m - minutes, d - days."""
+        ),
+        StructuredTool(
+            name="TopTokenHolders",
+            func=top_token_holders,
+            coroutine=top_token_holders,
+            args_schema=ToolRequestWithTokenAndTimeframe,
+            description="""Extract token ca and timeframe (if presented) from user question to retrieve top token holders, example of ca: '2Bs4MW8NKBDy6Bsn2RmGLNYNn4ofccVWMHEiRcVvpump', timeframes might be None or one of the following "1m", "5m", "15m", "30m", "60m", "1h", "4h", "6h", "8h", "12h", "1d", "3d", "7d", "30d" where m - minutes, d - days."""
         ),
         StructuredTool.from_function(
             name="TokenSwap",
@@ -225,6 +249,7 @@ def get_agent(request: Request) -> AgentExecutor:
 
 
 async def stream_response(agent_executor: AgentExecutor, messages: list[ChatMessage]):
+    tools_used_num = 0
     input_message = messages[-1] if messages else None
     chat_history = messages[:-1]
 
@@ -263,8 +288,10 @@ async def stream_response(agent_executor: AgentExecutor, messages: list[ChatMess
             else:
                 # Для остальных инструментов сохраняем оригинальное поведение
                 if hasattr(output_data, "dict"):
-                    event["data"]["output"] = output_data.dict()
-                yield json.dumps(event) + "\n"
+                    if tools_used_num < settings.MAX_NUM_OF_TOOLS:
+                        event["data"]["output"] = output_data.dict()
+                        tools_used_num += 1
+                        yield json.dumps(event) + "\n"
             
 
 def mock_responses(input_message: str) -> Optional[str]:

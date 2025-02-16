@@ -66,7 +66,9 @@ class Settings(BaseSettings):
     BITQUERY_API_KEY: str = os.environ["BITQUERY_API_KEY"]
     BITQUERY_URL: str = "https://streaming.bitquery.io/eap"
 
-    TIME_INTERVALS: List[str] = ["1m", "5m", "15m", "30m", "60m", "1d", "3d", "7d", "30d"]
+    TIME_INTERVALS: List[str] = ["1m", "5m", "15m", "30m", "60m", "1h", "4h", "6h", "8h", "12h", "1d", "3d", "7d", "30d"] # добавить
+
+    MAX_NUM_OF_TOOLS: int = 1
 
     REDIS_HOST: str = os.environ["REDIS_HOST"]
 
