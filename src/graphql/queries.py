@@ -372,3 +372,35 @@ query MyQuery {{
   }}
 }}
 """
+
+find_ca_by_symbol_template = """
+query MyQuery {{
+  Solana {{
+    TokenSupplyUpdates(
+      where: {{
+        TokenSupplyUpdate: {{
+          Currency: {{
+            Symbol: {{is: "{value}"}}
+          }}
+        }}
+      }}
+      orderBy: {{descending: TokenSupplyUpdate_PostBalanceInUSD}}
+      limitBy: {{
+        by: TokenSupplyUpdate_Currency_MintAddress, 
+        count: 1
+      }}
+      limit: {{count: 1}}
+    ) {{
+      TokenSupplyUpdate {{
+        Currency {{
+          Symbol
+          MintAddress
+          Name
+        }}
+        PostBalance
+        PostBalanceInUSD
+      }}
+    }}
+  }}
+}}
+"""

@@ -13,7 +13,7 @@ from src.schemas.tokenvolume import TokenVolumeResponse
 from src.schemas.pumpfuntoptokens import PumpFunResponse
 from src.schemas.topresponse import TopTradersResponse, TokenHoldersResponse, TrendingTokensResponse
 from src.schemas.balance import WalletBalanceResponse
-from src.graphql.queries import chart_query_template, pumpfun_token_sorted_by_marketcap, token_info_template, top_traders_template, top_holders_template, top_trending_template, balance_template
+from src.graphql.queries import *
 from typing import List, Optional, Dict
 from src.config import settings
 from urllib.parse import urlparse
@@ -65,13 +65,7 @@ async def get_chart(
         "variables": "{}"
     }
 
-    async with httpx.AsyncClient() as client:
-        response = await client.post(BITQUERY_URL, headers=headers, json=query, timeout=30.0)
-
-    if response.status_code != 200:
-        raise HTTPException(status_code=response.status_code, detail="Failed to fetch data from Bitquery")
-
-    data = response.json()
+    data = await fetch_bitquery(query)
 
     if "data" not in data or "Solana" not in data["data"] or "ohcl" not in data["data"]["Solana"]:
         raise HTTPException(status_code=400, detail="Invalid response from Bitquery")
@@ -97,18 +91,12 @@ async def get_chart(
 @router.get("/pumpfun-top-tokens", response_model=PumpFunResponse)
 @log_exceptions
 async def get_pumpfun_top_tokens():
-    async with httpx.AsyncClient() as client:
-        response = await client.post(
-            BITQUERY_URL,
-            headers=headers,
-            json={"query": pumpfun_token_sorted_by_marketcap, "variables": "{}"},
-            timeout=30.0
-        )
+    query = {
+        "query": pumpfun_token_sorted_by_marketcap,
+        "variables": "{}"
+    }
 
-    if response.status_code != 200:
-        raise HTTPException(status_code=response.status_code, detail="Failed to fetch data from Bitquery")
-
-    data = response.json()
+    data = await fetch_bitquery(query)
 
     if "data" not in data or "Solana" not in data["data"] or "DEXTrades" not in data["data"]["Solana"]:
         raise HTTPException(status_code=400, detail="Invalid response from Bitquery")
@@ -160,18 +148,12 @@ async def get_volume(
         "variables": "{}"
     }
 
-    async with httpx.AsyncClient() as client:
-        response = await client.post(BITQUERY_URL, headers=headers, json=query, timeout=30.0)
+    data = await fetch_bitquery(query)
 
-    if response.status_code != 200:
-        raise HTTPException(status_code=response.status_code, detail="Failed to fetch data from Bitquery")
-
-    response_json = response.json()
-
-    if "data" not in response_json:
+    if "data" not in data:
         raise HTTPException(status_code=400, detail="Invalid response from Bitquery")
 
-    response_string = json.dumps(response_json["data"])
+    response_string = json.dumps(data["data"])
     return await calculate_volumes(response_string)
 
 @router.get("/top-traders", response_model=TopTradersResponse)
@@ -196,13 +178,7 @@ async def get_top_traders(
         "variables": "{}"
     }
 
-    async with httpx.AsyncClient() as client:
-        response = await client.post(BITQUERY_URL, headers=headers, json=query, timeout=30.0)
-
-    if response.status_code != 200:
-        raise HTTPException(status_code=response.status_code, detail="Failed to fetch data from Bitquery")
-
-    data = response.json()
+    data = await fetch_bitquery(query)
 
     dex_trades = data.get("data", {}).get("Solana", {}).get("DEXTradeByTokens", [])
     if not dex_trades:
@@ -233,13 +209,8 @@ async def get_token_holders(
         "variables": "{}"
     }
 
-    async with httpx.AsyncClient() as client:
-        response = await client.post(BITQUERY_URL, headers=headers, json=query, timeout=30.0)
+    data = await fetch_bitquery(query)
 
-    if response.status_code != 200:
-        raise HTTPException(status_code=response.status_code, detail="Failed to fetch data from Bitquery")
-
-    data = response.json()
     solana_data = data.get("data", {}).get("Solana", {})
 
     token_supply_update = solana_data.get("TokenSupplyUpdates", [{}])[0].get("TokenSupplyUpdate", {})
@@ -276,13 +247,8 @@ async def get_trending_tokens(
         "variables": "{}"
     }
 
-    async with httpx.AsyncClient() as client:
-        response = await client.post(BITQUERY_URL, headers=headers, json=query, timeout=30.0)
+    data = await fetch_bitquery(query)
 
-    if response.status_code != 200:
-        raise HTTPException(status_code=response.status_code, detail="Failed to fetch data from Bitquery")
-
-    data = response.json()
     trending_tokens = data.get("data", {}).get("Solana", {}).get("DEXTradeByTokens", [])
 
     if not trending_tokens:
@@ -319,13 +285,9 @@ async def get_wallet_balance(
         "query": balance_template.format(mint_address=mint_address),
         "variables": "{}"
     }
-    async with httpx.AsyncClient() as client:
-        response = await client.post(BITQUERY_URL, headers=headers, json=query, timeout=30.0)
 
-    if response.status_code != 200:
-        raise HTTPException(status_code=response.status_code, detail="Ошибка запроса к Bitquery")
+    data = await fetch_bitquery(query)
 
-    data = response.json()
     balance_updates = data.get("data", {}).get("Solana", {}).get("BalanceUpdates", [])
 
     # Exclude lines without uri
@@ -367,29 +329,27 @@ IPFS_GATEWAYS = ["https://dweb.link", "https://ipfs.io", "https://cf-ipfs.com"]
 
 
 async def fetch_ipfs_metadata(uri: str) -> Optional[Dict]:
-    """Получает метаданные токена по IPFS URI, используя альтернативные шлюзы при ошибках."""
+    """Retrieve tokens metadata by  IPFS URI, using alternative gateways on errors."""
     parsed_uri = urlparse(uri)
 
     async with httpx.AsyncClient(follow_redirects=True) as client:
         try:
             response = await client.get(uri, timeout=5)
 
-            # Если получили редирект (302), делаем запрос по новому Location
             if response.status_code == 302 and "Location" in response.headers:
                 redirected_url = response.headers["Location"]
-                logging.info(f"Редирект на {redirected_url}")
+                logging.info(f"Redirect to {redirected_url}")
                 response = await client.get(redirected_url, timeout=5)
 
             if response.status_code == 200:
                 metadata = response.json() or {}
 
-                # Если есть image, сразу возвращаем
                 if "image" in metadata and isinstance(metadata["image"], str):
                     return metadata
             else:
-                logging.warning(f"Неудачный статус {response.status_code} для {uri}")
+                logging.warning(f"Error code {response.status_code} for {uri}")
         except httpx.RequestError as e:
-            logging.error(f"Ошибка запроса к {uri}: {e}")
+            logging.error(f"Bad request: {uri}. Error: {e}")
 
     # Проверяем, является ли URL IPFS-шлюзом
     ipfs_hash = None
@@ -415,7 +375,6 @@ async def fetch_ipfs_metadata(uri: str) -> Optional[Dict]:
                 if response.status_code == 200:
                     metadata = response.json() or {}
 
-                    # Заменяем ссылку в `image` на ipfs.io
                     if "image" in metadata and isinstance(metadata["image"], str):
                         image_parsed = urlparse(metadata["image"])
                         for g in IPFS_GATEWAYS:
@@ -430,6 +389,16 @@ async def fetch_ipfs_metadata(uri: str) -> Optional[Dict]:
                 logging.error(f"Ошибка запроса к {new_uri}: {e}")
 
     return {}
+
+async def fetch_bitquery(query):
+    async with httpx.AsyncClient() as client:
+        response = await client.post(BITQUERY_URL, headers=headers, json=query, timeout=30.0)
+
+    if response.status_code != 200:
+        raise HTTPException(status_code=response.status_code, detail="Ошибка запроса к Bitquery")
+
+    data = response.json()
+    return data
 
 async def calculate_volumes(response: str) -> TokenVolumeResponse:
     data = json.loads(response)
@@ -496,10 +465,33 @@ async def classify_input(mint_address: str):
         key = "Symbol"
         #value = mint_address - тикеры в битквери можно отправлять и с долларом и без, но кажется без находит реальные токены
         value = mint_address[1:].upper()
+        query = {
+            "query": find_ca_by_symbol_template.format(value=value),
+            "variables": "{}"
+        }
+        data = await fetch_bitquery(query)
+
+        data = data.get("data", {}).get("Solana", {}).get("TokenSupplyUpdates", [])
+        if data:
+            key = "MintAddress"
+            value = data[0]["TokenSupplyUpdate"]["Currency"]["MintAddress"]
+
     elif len(mint_address) <= 6 and " " not in mint_address:
         key = "Symbol"
         #value = f"${mint_address}"
         value = mint_address.upper()
+
+        query = {
+            "query": find_ca_by_symbol_template.format(value=value),
+            "variables": "{}"
+        }
+        data = await fetch_bitquery(query)
+
+        data = data.get("data", {}).get("Solana", {}).get("TokenSupplyUpdates", [])
+        if data:
+            key = "MintAddress"
+            value = data[0]["TokenSupplyUpdate"]["Currency"]["MintAddress"]
+
     elif " " in mint_address or mint_address.isalpha():
         key = "Name"
         value = mint_address
