@@ -70,7 +70,7 @@ async def create_or_update_chat(chat_data: ChatCreateUpdate, wallet_id: str, db:
         
         db_chat = Chat(
             uuid=chat_data.uuid,
-            name=chat_name,  # Используем сгенерированное имя вместо переданного
+            name=chat_name or "New Chat",  # Используем сгенерированное имя вместо переданного
             wallet_id=wallet_id
         )
         db.add(db_chat)
