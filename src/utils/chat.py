@@ -288,8 +288,8 @@ async def stream_response(agent_executor: AgentExecutor, messages: list[ChatMess
             # Пропускаем начало выполнения инструментов
             continue
         elif kind == "on_tool_end":
-            logging.info(f"Used tool {output_data}")
             output_data = event["data"].get("output", {})
+            logging.info(f"Used tool {output_data}")
             tool_name = event.get("name", "")
             
             if tool_name in ["PerplexitySearch", "DeepResearchTwitter", "WebDeepSearch"]:
