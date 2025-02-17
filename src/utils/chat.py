@@ -32,7 +32,7 @@ async def chart_details_and_stats(token_ca: str) -> ToolResponse:
         type="chart-and-stats",
         endpoint="/api/toolcall/market-chart",
         args= {
-            "token_ca": token_ca
+            "mint_address": token_ca
         },
         response=CHART_DETAILS_PASTA.format(token_ca=token_ca)
     )
