@@ -32,13 +32,17 @@ async def chart_details_and_stats(
     Calling this function will result in widget trigger for user, which shows token chart and stats
     you MUST answer to user question only with text from response field
     in the output of this function"""
+    args = {
+        "mint_address": token_ca,
+    }
+    
+    if timeframe in settings.TIME_INTERVALS:
+        args["interval"] = timeframe
+
     return ToolResponse(
         type="chart-and-stats",
         endpoint="/api/toolcall/market-chart",
-        args= {
-            "mint_address": token_ca,
-            "interval": timeframe if timeframe in settings.TIME_INTERVALS else None
-        },
+        args=args,
         response=CHART_DETAILS_PASTA.format(token_ca=token_ca)
     )
 
@@ -78,14 +82,21 @@ async def top_trending_tokens(timeframe: Optional[str] = None) -> ToolResponse:
     you MUST answer to user question only with text from response field
     in the output of this function
     """
-    return ToolResponse(
-        type="token-top",
-        endpoint="/api/toolcall/trending-tokens",
-        args= {
-            "interval": timeframe if timeframe in settings.TIME_INTERVALS else None
-        },
-        response=TOP_PUMPFUN_TOKENS_BY_MARKET_CAP
-    )
+    if timeframe in settings.TIME_INTERVALS:
+        return ToolResponse(
+            type="token-top",
+            endpoint="/api/toolcall/trending-tokens",
+            args= {
+                "interval": timeframe if timeframe in settings.TIME_INTERVALS else None
+            },
+            response=TOP_PUMPFUN_TOKENS_BY_MARKET_CAP
+        )
+    else:
+        return ToolResponse(
+            type="token-top",
+            endpoint="/api/toolcall/trending-tokens",
+            response=TOP_PUMPFUN_TOKENS_BY_MARKET_CAP
+        )
 
 
 async def top_token_traders(
@@ -96,13 +107,17 @@ async def top_token_traders(
     Calling this function will result in widget trigger for user,
     you MUST answer to user question only with text from response field
     in the output of this function"""
+    args = {
+        "mint_address": token_ca,
+    }
+    
+    if timeframe in settings.TIME_INTERVALS:
+        args["interval"] = timeframe
+
     return ToolResponse(
         type="top-traders",
         endpoint="/api/toolcall/top-traders",
-        args= {
-            "mint_address": token_ca,
-            "interval": timeframe if timeframe in settings.TIME_INTERVALS else None
-        },
+        args=args,
         response=TOP_TOKEN_TRADERS.format(token_ca=token_ca)
     )
 
@@ -114,13 +129,17 @@ async def top_token_holders(
     Calling this function will result in widget trigger for user,
     you MUST answer to user question only with text from response field
     in the output of this function"""
+    args = {
+        "mint_address": token_ca,
+    }
+    
+    if timeframe in settings.TIME_INTERVALS:
+        args["interval"] = timeframe
+
     return ToolResponse(
         type="top-holders",
         endpoint="/api/toolcall/top-holders",
-        args= {
-            "mint_address": token_ca,
-            "interval": timeframe if timeframe in settings.TIME_INTERVALS else None
-        },
+        args=args,
         response=TOP_TOKEN_HOLDERS.format(token_ca=token_ca)
     )
 
@@ -132,13 +151,17 @@ async def token_volume(
     Calling this function will result in widget trigger for user,
     you MUST answer to user question only with text from response field
     in the output of this function"""
+    args = {
+        "mint_address": token_ca,
+    }
+    
+    if timeframe in settings.TIME_INTERVALS:
+        args["interval"] = timeframe
+
     return ToolResponse(
         type="stats-volume",
         endpoint="/api/toolcall/token-volume",
-        args= {
-            "mint_address": token_ca,
-            "interval": timeframe if timeframe in settings.TIME_INTERVALS else None
-        },
+        args=args,
         response=TOKEN_VOLUME.format(token_ca=token_ca)
     )
 
@@ -201,7 +224,7 @@ async def create_agent():
             name="TopTrendingTokens",
             func=top_trending_tokens,
             coroutine=top_trending_tokens,
-            description="""Get top trending tokens, you have to provide timeframe (if presented), timeframe might be None or one of the following "1m", "5m", "15m", "30m", "60m", "1h", "4h", "6h", "8h", "12h", "1d", "3d", "7d", "30d" where m - minutes, d - days."""
+            description="""Get top trending tokens, you have to extract timeframe (if presented) from user question for further processing, timeframe might be None or one of the following "1m", "5m", "15m", "30m", "60m", "1h", "4h", "6h", "8h", "12h", "1d", "3d", "7d", "30d" where m - minutes, d - days."""
         ),
         StructuredTool(
             name="ChartDetailsAndStats",
