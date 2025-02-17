@@ -67,15 +67,15 @@ async def top_pump_fun_tokens_by_market_cap(*args, **kwargs) -> ToolResponse:
     )
 
 
-async def top_trading_tokens(*args, **kwargs) -> ToolResponse:
-    """Get top trading tokens from DEX?
+async def top_trending_tokens(*args, **kwargs) -> ToolResponse:
+    """Get top trending tokens from DEX
     Calling this function will result in widget trigger for user,
     you MUST answer to user question only with text from response field
     in the output of this function
     """
     return ToolResponse(
         type="token-top",
-        endpoint="/api/toolcall/top-trading-tokens",
+        endpoint="/api/toolcall/trending-tokens",
         response=TOP_PUMPFUN_TOKENS_BY_MARKET_CAP
     )
 
@@ -196,10 +196,10 @@ async def create_agent():
             description="Get top PumpFun tokens by market capitalization",
         ),
         Tool(
-            name="TopTradingTokens",
-            func=top_trading_tokens,
-            coroutine=top_trading_tokens,
-            description="Get top trading tokens"
+            name="TopTrendingTokens",
+            func=top_trending_tokens,
+            coroutine=top_trending_tokens,
+            description="Get top trending tokens"
         ),
         StructuredTool(
             name="TokenVolume",
