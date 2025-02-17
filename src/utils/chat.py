@@ -1,4 +1,5 @@
 import json
+import logging
 import asyncio
 
 from time import sleep
@@ -23,7 +24,10 @@ from src.schemas.chat import ChatMessage, ToolResponse, TokenSwapModel, ToolRequ
 from src.utils.websearch import perplexity_search, deep_research_twitter, web_deep_search
 
 
-async def chart_details_and_stats(token_ca: str) -> ToolResponse:
+async def chart_details_and_stats(
+    token_ca: str, 
+    timeframe: Optional[str] = None
+) -> ToolResponse:
     """Extract token ca from user question for further processing
     Calling this function will result in widget trigger for user, which shows token chart and stats
     you MUST answer to user question only with text from response field
@@ -32,7 +36,8 @@ async def chart_details_and_stats(token_ca: str) -> ToolResponse:
         type="chart-and-stats",
         endpoint="/api/toolcall/market-chart",
         args= {
-            "mint_address": token_ca
+            "mint_address": token_ca,
+            "interval": timeframe if timeframe in settings.TIME_INTERVALS else None
         },
         response=CHART_DETAILS_PASTA.format(token_ca=token_ca)
     )
@@ -67,7 +72,7 @@ async def top_pump_fun_tokens_by_market_cap(*args, **kwargs) -> ToolResponse:
     )
 
 
-async def top_trending_tokens(*args, **kwargs) -> ToolResponse:
+async def top_trending_tokens(timeframe: Optional[str] = None) -> ToolResponse:
     """Get top trending tokens from DEX
     Calling this function will result in widget trigger for user,
     you MUST answer to user question only with text from response field
@@ -76,6 +81,9 @@ async def top_trending_tokens(*args, **kwargs) -> ToolResponse:
     return ToolResponse(
         type="token-top",
         endpoint="/api/toolcall/trending-tokens",
+        args= {
+            "interval": timeframe if timeframe in settings.TIME_INTERVALS else None
+        },
         response=TOP_PUMPFUN_TOKENS_BY_MARKET_CAP
     )
 
@@ -93,7 +101,7 @@ async def top_token_traders(
         endpoint="/api/toolcall/top-traders",
         args= {
             "mint_address": token_ca,
-            "timeframe": timeframe if timeframe in settings.TIME_INTERVALS else None
+            "interval": timeframe if timeframe in settings.TIME_INTERVALS else None
         },
         response=TOP_TOKEN_TRADERS.format(token_ca=token_ca)
     )
@@ -111,7 +119,7 @@ async def top_token_holders(
         endpoint="/api/toolcall/top-holders",
         args= {
             "mint_address": token_ca,
-            "timeframe": timeframe if timeframe in settings.TIME_INTERVALS else None
+            "interval": timeframe if timeframe in settings.TIME_INTERVALS else None
         },
         response=TOP_TOKEN_HOLDERS.format(token_ca=token_ca)
     )
@@ -129,7 +137,7 @@ async def token_volume(
         endpoint="/api/toolcall/token-volume",
         args= {
             "mint_address": token_ca,
-            "timeframe": timeframe if timeframe in settings.TIME_INTERVALS else None
+            "interval": timeframe if timeframe in settings.TIME_INTERVALS else None
         },
         response=TOKEN_VOLUME.format(token_ca=token_ca)
     )
@@ -178,12 +186,6 @@ async def create_agent():
             description="Perform a search using Perplexity, very deep and advanced mode, use only for two-three level questions cause it works 20 seconds"
         ),
         Tool(
-            name="ChartDetailsAndStats",
-            func=chart_details_and_stats,
-            coroutine=chart_details_and_stats,
-            description="Extract token ca from user question for further processing, example: '2Bs4MW8NKBDy6Bsn2RmGLNYNn4ofccVWMHEiRcVvpump'"
-        ),
-        Tool(
             name="TokenBalanceAndTokens",
             func=tokens_holded_by_wallet,
             coroutine=tokens_holded_by_wallet,
@@ -199,28 +201,35 @@ async def create_agent():
             name="TopTrendingTokens",
             func=top_trending_tokens,
             coroutine=top_trending_tokens,
-            description="Get top trending tokens"
+            description="""Get top trending tokens, you have to provide timeframe (if presented), timeframe might be None or one of the following "1m", "5m", "15m", "30m", "60m", "1h", "4h", "6h", "8h", "12h", "1d", "3d", "7d", "30d" where m - minutes, d - days."""
+        ),
+        StructuredTool(
+            name="ChartDetailsAndStats",
+            func=chart_details_and_stats,
+            coroutine=chart_details_and_stats,
+            args_schema=ToolRequestWithTokenAndTimeframe,
+            description="""Extract token ca and timeframe (if presented) from user question for further processing, example of ca: '2Bs4MW8NKBDy6Bsn2RmGLNYNn4ofccVWMHEiRcVvpump', timeframe might be None or one of the following "1m", "5m", "15m", "30m", "60m", "1h", "4h", "6h", "8h", "12h", "1d", "3d", "7d", "30d" where m - minutes, d - days."""
         ),
         StructuredTool(
             name="TokenVolume",
             func=token_volume,
             coroutine=token_volume,
             args_schema=ToolRequestWithTokenAndTimeframe,
-            description="""Extract token ca and timeframe (if presented) from user question to retrieve token volume, example of ca: '2Bs4MW8NKBDy6Bsn2RmGLNYNn4ofccVWMHEiRcVvpump', timeframes might be None or one of the following "1m", "5m", "15m", "30m", "60m", "1h", "4h", "6h", "8h", "12h", "1d", "3d", "7d", "30d" where m - minutes, d - days."""
+            description="""Extract token ca and timeframe (if presented) from user question to retrieve token volume, example of ca: '2Bs4MW8NKBDy6Bsn2RmGLNYNn4ofccVWMHEiRcVvpump', timeframe might be None or one of the following "1m", "5m", "15m", "30m", "60m", "1h", "4h", "6h", "8h", "12h", "1d", "3d", "7d", "30d" where m - minutes, d - days."""
         ),
         StructuredTool(
             name="TopTokenTraders",
             func=top_token_traders,
             coroutine=top_token_traders,
             args_schema=ToolRequestWithTokenAndTimeframe,
-            description="""Extract token ca and timeframe (if presented) from user question to retrieve top token traders, example of ca: '2Bs4MW8NKBDy6Bsn2RmGLNYNn4ofccVWMHEiRcVvpump', timeframes might be None or one of the following "1m", "5m", "15m", "30m", "60m", "1h", "4h", "6h", "8h", "12h", "1d", "3d", "7d", "30d" where m - minutes, d - days."""
+            description="""Extract token ca and timeframe (if presented) from user question to retrieve top token traders, example of ca: '2Bs4MW8NKBDy6Bsn2RmGLNYNn4ofccVWMHEiRcVvpump', timeframe might be None or one of the following "1m", "5m", "15m", "30m", "60m", "1h", "4h", "6h", "8h", "12h", "1d", "3d", "7d", "30d" where m - minutes, d - days."""
         ),
         StructuredTool(
             name="TopTokenHolders",
             func=top_token_holders,
             coroutine=top_token_holders,
             args_schema=ToolRequestWithTokenAndTimeframe,
-            description="""Extract token ca and timeframe (if presented) from user question to retrieve top token holders, example of ca: '2Bs4MW8NKBDy6Bsn2RmGLNYNn4ofccVWMHEiRcVvpump', timeframes might be None or one of the following "1m", "5m", "15m", "30m", "60m", "1h", "4h", "6h", "8h", "12h", "1d", "3d", "7d", "30d" where m - minutes, d - days."""
+            description="""Extract token ca and timeframe (if presented) from user question to retrieve top token holders, example of ca: '2Bs4MW8NKBDy6Bsn2RmGLNYNn4ofccVWMHEiRcVvpump', timeframe might be None or one of the following "1m", "5m", "15m", "30m", "60m", "1h", "4h", "6h", "8h", "12h", "1d", "3d", "7d", "30d" where m - minutes, d - days."""
         ),
         StructuredTool.from_function(
             name="TokenSwap",
@@ -279,6 +288,7 @@ async def stream_response(agent_executor: AgentExecutor, messages: list[ChatMess
             # Пропускаем начало выполнения инструментов
             continue
         elif kind == "on_tool_end":
+            logging.info(f"Used tool {output_data}")
             output_data = event["data"].get("output", {})
             tool_name = event.get("name", "")
             

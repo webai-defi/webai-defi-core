@@ -1,3 +1,5 @@
+import logging
+
 from fastapi import APIRouter, Depends
 from starlette.responses import StreamingResponse
 
@@ -21,4 +23,5 @@ router = APIRouter(prefix="/chat", tags=["chats"])
 })
 @log_exceptions
 async def generate(data: ChatRequest, agent_executor=Depends(get_agent)) -> str:
+    logging.info(f"Request to /generate {data}")
     return StreamingResponse(stream_response(agent_executor, data.messages), media_type="text/plain")
