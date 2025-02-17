@@ -21,7 +21,7 @@ services:
       - LANGCHAIN_API_KEY=${LANGCHAIN_API_KEY}
       - LANGCHAIN_PROJECT=${LANGCHAIN_PROJECT}
       - OPENAI_API_KEY=${OPENAI_API_KEY}
-      # - OPENAI_BASE_URL=https://openai-proxy-vercel-gamma.vercel.app/v1
+      - OPENAI_BASE_URL=https://openai-proxy-vercel-gamma.vercel.app/v1
       - YOUCOM_API_KEY=${YOUCOM_API_KEY}
       - BITQUERY_API_KEY=${BITQUERY_API_KEY}
       - NEWSAPI_API_KEY=${NEWSAPI_API_KEY}
