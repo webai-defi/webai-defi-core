@@ -8,6 +8,7 @@ from src.models.chat_history import ChatHistory
 from src.schemas.user import UserCreate, UserResponse
 from src.schemas.chat import ChatResponse, ChatCreateUpdate, ChatHistoryResponse
 from src.utils.logger import log_exceptions, logger
+from src.utils.summarizer import generate_chat_name
 
 from typing import List
 
@@ -64,9 +65,12 @@ async def create_or_update_chat(chat_data: ChatCreateUpdate, wallet_id: str, db:
         if not db_user:
             raise HTTPException(status_code=404, detail="User not found")
 
+        # Генерируем название чата на основе первых сообщений
+        chat_name = await generate_chat_name(chat_data.question, chat_data.answer)
+        
         db_chat = Chat(
             uuid=chat_data.uuid,
-            name=chat_data.name or "New Chat",
+            name=chat_name or "New Chat",  # Используем сгенерированное имя вместо переданного
             wallet_id=wallet_id
         )
         db.add(db_chat)
@@ -85,7 +89,10 @@ async def create_or_update_chat(chat_data: ChatCreateUpdate, wallet_id: str, db:
     db.add_all([new_question, new_answer])
     await db.commit()
 
-    return {"status": "ok"}
+    return {
+        "status": "ok",
+        "chat_name": db_chat.name
+    }
 
 
 @router.get("/chats/", response_model=List[ChatResponse])
