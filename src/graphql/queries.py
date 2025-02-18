@@ -12,8 +12,8 @@ chart_query_template.format(key=key, value=value, time_unit=time_unit, time_coun
 
 chart_query_template = """
 query MyQuery {{
-  Solana {{
-    ohcl: DEXTradeByTokens(
+  ohcl: Solana(dataset: combined) {{
+    DEXTradeByTokens(
           orderBy: {{descendingByField: "Block_Timefield"}}
           where: {{
             Trade: {{
@@ -35,35 +35,37 @@ query MyQuery {{
           }}
           volume: sum(of: Trade_Amount)
           Trade {{
-            high: Price(maximum: Trade_Price)
-            low: Price(minimum: Trade_Price)
-            open: Price(minimum: Block_Slot)
-            close: Price(maximum: Block_Slot)
+            high: PriceInUSD(maximum: Trade_Price)
+            low: PriceInUSD(minimum: Trade_Price)
+            open: PriceInUSD(minimum: Block_Slot)
+            close: PriceInUSD(maximum: Block_Slot)
           }}
           count
         }}
-    token_info: DEXTradeByTokens(
-      where: {{
-        Trade: {{
-          Currency: {{
-            {key}: {{is: "{value}"}}
+  }}
+  token_info: Solana {{
+      DEXTradeByTokens(
+          where: {{
+            Trade: {{
+              Currency: {{
+                {key}: {{is: "{value}"}}
+              }}
+            }}
+          }}
+          orderBy: {{descending: Block_Time}}
+          limit: {{count: 1}}
+        ) {{
+          Trade {{
+            Currency {{
+              Name
+              Symbol
+              Uri
+              MintAddress
+            }}
+            PriceInUSD
+            Price
           }}
         }}
-      }}
-      orderBy: {{descending: Block_Time}}
-      limit: {{count: 1}}
-    ) {{
-      Trade {{
-        Currency {{
-          Name
-          Symbol
-          Uri
-          MintAddress
-        }}
-        PriceInUSD
-        Price
-      }}
-    }}
   }}
 }}
 """

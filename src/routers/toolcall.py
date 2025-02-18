@@ -67,11 +67,17 @@ async def get_chart(
 
     data = await fetch_bitquery(query)
 
-    if "data" not in data or "Solana" not in data["data"] or "ohcl" not in data["data"]["Solana"]:
+    if "data" not in data or "ohcl" not in data["data"]:
         raise HTTPException(status_code=400, detail="Invalid response from Bitquery")
 
-    ohcl = data["data"]["Solana"]["ohcl"]
-    token_info = data["data"]["Solana"]["token_info"][0]["Trade"]
+    ohcl = data["data"]["ohcl"]["DEXTradeByTokens"]
+    token_info = data["data"]["token_info"]["DEXTradeByTokens"][0]["Trade"]
+
+    open_price = ohcl[0]['Trade']['open']
+    close_price = ohcl[0]['Trade']['close']
+
+    # Вычисление процентного изменения
+    price_change_percent = ((close_price - open_price) / open_price) * 100
 
     async with httpx.AsyncClient() as client:
         uri = token_info["Currency"].get("Uri")
@@ -81,8 +87,10 @@ async def get_chart(
             "image": metadata.get("image", ""),
             "twitter": metadata.get("twitter", ""),
             "website": metadata.get("website", ""),
-            "createdOn": metadata.get("createdOn", "")
+            "createdOn": metadata.get("createdOn", ""),
+            "priceChangePercent": price_change_percent
         })
+
 
     return {"data": {"ohcl": ohcl, "token_info": token_info}}
 

@@ -30,6 +30,7 @@ class Token(BaseModel):
     twitter: Optional[str] = ""
     website: Optional[str] = ""
     createdOn: Optional[str] = ""
+    priceChangePercent: float
 
 class TokenInfo(BaseModel):
     Price: float
