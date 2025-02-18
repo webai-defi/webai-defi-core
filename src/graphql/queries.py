@@ -28,7 +28,7 @@ query MyQuery {{
               PriceAsymmetry: {{lt: 0.1}}
             }}
           }}
-          limit: {{count: 100}}
+          limit: {{count: 300}}
         ) {{
           Block {{
             Timefield: Time(interval: {{in: {time_unit}, count: {time_count}}})
