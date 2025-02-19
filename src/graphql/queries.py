@@ -25,6 +25,7 @@ query MyQuery {{
                   MintAddress: {{is: "So11111111111111111111111111111111111111112"}}
                 }}
               }}
+              Dex: {{ ProgramAddress: {{is : "whirLbMiicVdio4qvUfM5KAg6Ct8VwpYzGff3uctyCc" }}}}
               PriceAsymmetry: {{lt: 0.1}}
             }}
           }}
