@@ -231,7 +231,7 @@ async def create_agent():
             func=chart_details_and_stats,
             coroutine=chart_details_and_stats,
             args_schema=ToolRequestWithTokenAndTimeframe,
-            description="""Extract token ca and timeframe (if presented) from user question for further processing, example of ca: '2Bs4MW8NKBDy6Bsn2RmGLNYNn4ofccVWMHEiRcVvpump', timeframe might be None or one of the following "1m", "5m", "15m", "30m", "60m", "1h", "4h", "6h", "8h", "12h", "1d", "3d", "7d", "30d" where m - minutes, d - days."""
+            description="""Extract token ca and timeframe (if presented) from user question for further processing, examples of ca: '2Bs4MW8NKBDy6Bsn2RmGLNYNn4ofccVWMHEiRcVvpump', '$TRUMP', 'btc', timeframe might be None or one of the following "1m", "5m", "15m", "30m", "60m", "1h", "4h", "6h", "8h", "12h", "1d", "3d", "7d", "30d" where m - minutes, d - days."""
         ),
         # StructuredTool(
         #     name="TokenVolume",
@@ -245,14 +245,14 @@ async def create_agent():
             func=top_token_traders,
             coroutine=top_token_traders,
             args_schema=ToolRequestWithTokenAndTimeframe,
-            description="""Extract token ca and timeframe (if presented) from user question to retrieve top token traders, example of ca: '2Bs4MW8NKBDy6Bsn2RmGLNYNn4ofccVWMHEiRcVvpump', timeframe might be None or one of the following "1m", "5m", "15m", "30m", "60m", "1h", "4h", "6h", "8h", "12h", "1d", "3d", "7d", "30d" where m - minutes, d - days."""
+            description="""Extract token ca and timeframe (if presented) from user question to retrieve top token traders, examples of ca: '2Bs4MW8NKBDy6Bsn2RmGLNYNn4ofccVWMHEiRcVvpump', '$TRUMP', 'btc', timeframe might be None or one of the following "1m", "5m", "15m", "30m", "60m", "1h", "4h", "6h", "8h", "12h", "1d", "3d", "7d", "30d" where m - minutes, d - days."""
         ),
         StructuredTool(
             name="TopTokenHolders",
             func=top_token_holders,
             coroutine=top_token_holders,
             args_schema=ToolRequestWithTokenAndTimeframe,
-            description="""Extract token ca and timeframe (if presented) from user question to retrieve top token holders, example of ca: '2Bs4MW8NKBDy6Bsn2RmGLNYNn4ofccVWMHEiRcVvpump', timeframe might be None or one of the following "1m", "5m", "15m", "30m", "60m", "1h", "4h", "6h", "8h", "12h", "1d", "3d", "7d", "30d" where m - minutes, d - days."""
+            description="""Extract token ca and timeframe (if presented) from user question to retrieve top token holders, examples of ca: '2Bs4MW8NKBDy6Bsn2RmGLNYNn4ofccVWMHEiRcVvpump', '$TRUMP', 'btc', timeframe might be None or one of the following "1m", "5m", "15m", "30m", "60m", "1h", "4h", "6h", "8h", "12h", "1d", "3d", "7d", "30d" where m - minutes, d - days."""
         ),
         StructuredTool.from_function(
             name="TokenSwap",
