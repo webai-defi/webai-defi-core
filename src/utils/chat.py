@@ -233,13 +233,13 @@ async def create_agent():
             args_schema=ToolRequestWithTokenAndTimeframe,
             description="""Extract token ca and timeframe (if presented) from user question for further processing, example of ca: '2Bs4MW8NKBDy6Bsn2RmGLNYNn4ofccVWMHEiRcVvpump', timeframe might be None or one of the following "1m", "5m", "15m", "30m", "60m", "1h", "4h", "6h", "8h", "12h", "1d", "3d", "7d", "30d" where m - minutes, d - days."""
         ),
-        StructuredTool(
-            name="TokenVolume",
-            func=token_volume,
-            coroutine=token_volume,
-            args_schema=ToolRequestWithTokenAndTimeframe,
-            description="""Extract token ca and timeframe (if presented) from user question to retrieve token volume, example of ca: '2Bs4MW8NKBDy6Bsn2RmGLNYNn4ofccVWMHEiRcVvpump', timeframe might be None or one of the following "1m", "5m", "15m", "30m", "60m", "1h", "4h", "6h", "8h", "12h", "1d", "3d", "7d", "30d" where m - minutes, d - days."""
-        ),
+        # StructuredTool(
+        #     name="TokenVolume",
+        #     func=token_volume,
+        #     coroutine=token_volume,
+        #     args_schema=ToolRequestWithTokenAndTimeframe,
+        #     description="""Extract token ca and timeframe (if presented) from user question to retrieve token volume, example of ca: '2Bs4MW8NKBDy6Bsn2RmGLNYNn4ofccVWMHEiRcVvpump', timeframe might be None or one of the following "1m", "5m", "15m", "30m", "60m", "1h", "4h", "6h", "8h", "12h", "1d", "3d", "7d", "30d" where m - minutes, d - days."""
+        # ),
         StructuredTool(
             name="TopTokenTraders",
             func=top_token_traders,
